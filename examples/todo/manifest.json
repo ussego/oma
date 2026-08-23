@@ -1,0 +1,13 @@
+{
+	"schemaVersion": 1,
+	"id": "examples.todo",
+	"name": "Todo",
+	"version": "0.1.0",
+	"author": "ussego",
+	"description": "Minimal oma example - an overlay todo list",
+	"kinds": ["overlay"],
+	"entryPoints": {
+		"overlay": "ui/Overlay.qml"
+	},
+	"framework": "oma"
+}

@@ -1,0 +1,13 @@
+{
+	"schemaVersion": 1,
+	"id": "examples.stopwatch",
+	"name": "Stopwatch",
+	"version": "0.1.0",
+	"author": "ussego",
+	"description": "Every oma runtime feature in one example - state, derived, config, IPC and actions",
+	"kinds": ["bar-widget"],
+	"entryPoints": {
+		"barWidget": "ui/BarWidget.qml"
+	},
+	"framework": "oma"
+}

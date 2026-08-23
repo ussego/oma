@@ -1,0 +1,9 @@
+{
+	"name": "@oma/runtime",
+	"version": "0.0.0-dev",
+	"license": "MIT",
+	"exports": "./oma.js",
+	"publish": {
+		"include": ["oma.js", "oma.d.ts", "README.md", "LICENSE"]
+	}
+}

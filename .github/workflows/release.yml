@@ -1,0 +1,84 @@
+name: release
+
+on:
+    push:
+        tags: ["v*"]
+
+permissions:
+    contents: write
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                arch: [amd64, arm64]
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-go@v5
+              with:
+                  go-version-file: cli/go.mod
+
+            - name: Build
+              working-directory: cli
+              env:
+                  GOARCH: ${{ matrix.arch }}
+                  CGO_ENABLED: "0"
+              run: |
+                  VERSION="${GITHUB_REF_NAME#v}"
+                  go build -trimpath -ldflags "-s -w -X main.cliVersion=${VERSION}" \
+                    -o "oma-${GITHUB_REF_NAME}-linux-${GOARCH}" .
+
+            - name: Package
+              run: |
+                  DIR="oma-${GITHUB_REF_NAME}-linux-${{ matrix.arch }}"
+                  mkdir -p "dist/${DIR}"
+                  cp "cli/oma-${GITHUB_REF_NAME}-linux-${{ matrix.arch }}" "dist/${DIR}/oma"
+                  cp README.md "dist/${DIR}/" 2>/dev/null || true
+                  tar -czf "dist/${DIR}.tar.gz" -C dist "${DIR}"
+
+            - name: Checksums
+              run: |
+                  cd dist
+                  sha256sum *.tar.gz > sha256sums.txt
+                  cat sha256sums.txt
+
+            - name: Publish
+              uses: softprops/action-gh-release@v2
+              with:
+                  files: |
+                      dist/*.tar.gz
+                      dist/sha256sums.txt
+                  generate_release_notes: true
+
+    # Publishes @oma/runtime (the plugin runtime lib) to jsr.io. Provenance
+    # requires tokenless OIDC publishing from Actions — do not add a --token
+    # fallback. One-time setup: link the package to this repository in the
+    # jsr.io package settings ("GitHub Repository" field).
+    publish-jsr:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            id-token: write
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Stage package (cli/assets/oma.js is the single source of truth)
+              run: |
+                  VERSION="${GITHUB_REF_NAME#v}"
+                  cp cli/assets/oma.js cli/assets/oma.d.ts jsr/
+                  cp LICENSE jsr/LICENSE
+                  sed -i "s/\"version\": \"0.0.0-dev\"/\"version\": \"${VERSION}\"/" jsr/jsr.json
+                  grep -q "\"version\": \"${VERSION}\"" jsr/jsr.json
+
+            - name: Byte-match assertion (published lib == embedded asset)
+              run: cmp cli/assets/oma.js jsr/oma.js
+
+            - name: Dry run
+              working-directory: jsr
+              run: npx jsr publish --dry-run
+
+            - name: Publish
+              working-directory: jsr
+              run: npx jsr publish

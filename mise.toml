@@ -1,0 +1,54 @@
+# oma development tasks - testing only, nothing here touches release channels.
+#
+#   mise run build      compile dist/oma (callable as `oma` inside the repo)
+#   mise run check      fmt + vet + hermetic tests
+#   mise run live       tier-1 offscreen verification (safe)
+#   mise run live-shell tier-2 full round trip (restarts your shell!)
+#   mise run install-dev  expose the build anywhere as `oma-dev`
+#   mise run clean
+
+[env]
+_.path = ["dist"]
+
+[tasks.build]
+description = "Compile a dev build to dist/oma"
+dir = "cli"
+# Same flags as .github/workflows/release.yml so dev builds match the shipped
+# artifact: CGO_ENABLED=0 (static, os/user etc. resolved pure-Go), -trimpath,
+# -s -w.
+env = { CGO_ENABLED = "0" }
+run = """
+go build -trimpath -ldflags "-s -w -X main.cliVersion=dev" -o ../dist/oma .
+"""
+sources = ["**/*.go", "go.mod", "assets/**"]
+outputs = ["../dist/oma"]
+
+[tasks.check]
+description = "vet + hermetic tests"
+dir = "cli"
+# vet twice: the second pass compiles the `live`-tagged files so tag-gated
+# code can't drift out of sync with the API unnoticed; skills_test.sh then
+# exercises the skills commands
+run = "gofmt -l . && go vet ./... && go vet -tags live ./... && go test ./... && bash ../skills_test.sh"
+
+[tasks.live]
+description = "Tier-1 offscreen verification (safe)"
+dir = "cli"
+run = "go test -tags live -run Offscreen ./..."
+
+[tasks."live-shell"]
+description = "Tier-2 full round trip - RESTARTS YOUR SHELL"
+dir = "cli"
+run = "OMA_LIVE_TEST=1 go test -tags live -run LiveShell ./..."
+
+[tasks."install-dev"]
+description = "Symlink the dev build to ~/.local/bin/oma-dev"
+depends = ["build"]
+run = """
+mkdir -p ~/.local/bin
+ln -sfn "$(pwd)/dist/oma" ~/.local/bin/oma-dev
+oma-dev --version
+"""
+
+[tasks.clean]
+run = "rm -rf dist cli/oma cli/cli"

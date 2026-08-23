@@ -1,0 +1,13 @@
+{
+	"schemaVersion": 1,
+	"id": "examples.counter",
+	"name": "Counter",
+	"version": "0.1.0",
+	"author": "ussego",
+	"description": "Minimal oma example - a bar button with an attached counter panel",
+	"kinds": ["bar-widget"],
+	"entryPoints": {
+		"barWidget": "ui/BarWidget.qml"
+	},
+	"framework": "oma"
+}

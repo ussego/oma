@@ -1,0 +1,23 @@
+# build artifacts
+pkg/
+dist/
+*.tar.gz
+
+# local builds of the CLI
+cli/oma
+cli/cli
+/oma
+oma-v*
+
+# jsr publish staging (copied from cli/assets by CI or local dry-runs)
+jsr/oma.js
+jsr/oma.d.ts
+jsr/LICENSE
+
+# local agent skill installs (npx skills add)
+.agents/
+skills-lock.json
+
+# editor/OS noise
+.DS_Store
+*.log

@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "oma-config",
+  "title": "oma.json",
+  "description": "Opt-in oma project configuration. Data only: the CLI reads it today and omarchy itself can consume it natively later.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Pointer to this schema so editors autocomplete and validate."
+    },
+    "icon": {
+      "type": "string",
+      "description": "Global icon for the plugin: a freedesktop icon name or a file path. Used by launcher entries and available to surfaces.",
+      "default": "application-x-executable"
+    },
+    "panel": {
+      "type": "object",
+      "description": "Panel presentation mode. 'attached' (default) is the bar-anchored popup, 'window' is a standalone draggable FloatingWindow, 'both' generates both.",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["attached", "window", "both"],
+          "default": "attached",
+          "description": "How the panel is presented."
+        }
+      }
+    },
+    "launchers": {
+      "type": "array",
+      "description": "Launcher entries written to ~/.local/share/applications/<id>.desktop on 'oma install' / 'oma launcher add'. Absent or empty means nothing is ever created.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Entry display name (required)."
+          },
+          "action": {
+            "enum": ["summon", "toggle", "hide"],
+            "description": "Shell action applied to the plugin id. Default: summon."
+          },
+          "exec": {
+            "type": "string",
+            "description": "Full Exec= override. When set, action is ignored."
+          },
+          "icon": {
+            "type": "string",
+            "description": "Overrides the global icon for this entry."
+          },
+          "genericName": {
+            "type": "string",
+            "description": "Desktop Entry GenericName. Default: kind label (Panel, Overlay, ...)."
+          },
+          "comment": {
+            "type": "string",
+            "description": "Desktop Entry Comment. Default: manifest description."
+          },
+          "terminal": {
+            "type": "boolean",
+            "default": false
+          },
+          "categories": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Desktop Entry Categories. Default: [\"Utility\"]."
+          },
+          "keywords": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Desktop Entry Keywords. Default: name words + id segments."
+          }
+        }
+      }
+    }
+  }
+}

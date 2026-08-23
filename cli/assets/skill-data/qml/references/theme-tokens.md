@@ -1,0 +1,277 @@
+# qs.Commons theme tokens
+
+Generated from the installed shell source (`/usr/share/omarchy/shell/Commons/`).
+Import via `import qs.Commons`. These are the single source of theming -
+never hardcode colors, fonts, spacing or radii.
+
+## Border
+
+- `none` (function)
+- `flat` (function)
+- `value` (function)
+- `valueOr` (function)
+- `resolveValueRef` (function)
+- `alpha` (function)
+- `cssColor` (function)
+- `resolvedGradient` (function)
+- `sameColor` (function)
+- `localOrSurfaceSpec` (function)
+- `surfaceWidths` (function)
+- `borderValue` (function)
+- `surfaceSpec` (function)
+- `hyprlandActiveSpec` (function)
+- `controlPrefix` (function)
+- `controlColor` (function)
+- `controlAlpha` (function)
+- `controlFallbackWidth` (function)
+- `controlWidths` (function)
+- `controlHasWidth` (function)
+- `controlSpec` (function)
+- `withWidth` (function)
+- `isNone` (function)
+- `needsOverlay` (function)
+- `canUseNative` (function)
+- `top` (function)
+- `right` (function)
+- `bottom` (function)
+- `left` (function)
+- `uniformWidth` (function)
+- `color` (function)
+
+## Color
+
+- `home` (string) — default `Quickshell.env("HOME")`
+- `stateHome` (string) — default `home + "/.local/state"`
+- `currentThemePath` (string) — default `stateHome + "/omarchy/current/theme"`
+- `foreground` (color) — default `"#cacccc"`
+- `background` (color) — default `"#101315"`
+- `accent` (color) — default `"#cacccc"`
+- `urgent` (color) — default `"#a55555"`
+- `muted` (color) — default `"#707880"`
+- `shellValues` (var) — default `({})`
+- `pick` (function)
+- `pickAlpha` (function)
+- `firstColorToken` (function)
+- `flatColor` (function)
+- `composed` (function)
+- `bar` (QtObject) — default `QtObject {`
+- `bar.background` (color) — default `root.composed("bar.background", "bar.background-alpha", r...`
+- `bar.text` (color) — default `root.pick("bar.text", root.foreground)`
+- `bar.active` (color) — default `root.pick("bar.active", root.urgent)`
+- `popups` (QtObject) — default `QtObject {`
+- `popups.background` (color) — default `root.composed("popups.background", "popups.background-alp...`
+- `popups.text` (color) — default `root.pick("popups.text", root.foreground)`
+- `popups.border` (color) — default `root.composed("popups.border", "popups.border-alpha", roo...`
+- `tooltip` (QtObject) — default `QtObject {`
+- `tooltip.background` (color) — default `root.composed("tooltip.background", "tooltip.background-a...`
+- `tooltip.text` (color) — default `root.pick("tooltip.text", root.foreground)`
+- `tooltip.border` (color) — default `root.composed("tooltip.border", "tooltip.border-alpha", r...`
+- `notifications` (QtObject) — default `QtObject {`
+- `notifications.background` (color) — default `root.composed("notifications.background", "notifications....`
+- `notifications.text` (color) — default `root.pick("notifications.text", root.foreground)`
+- `notifications.border` (color) — default `root.composed("notifications.border", "notifications.bord...`
+- `notifications.countdown` (color) — default `root.pick("notifications.countdown", root.accent)`
+- `menu` (QtObject) — default `QtObject {`
+- `menu.background` (color) — default `root.composed("menu.background", "menu.background-alpha",...`
+- `menu.text` (color) — default `root.pick("menu.text", root.foreground)`
+- `menu.border` (color) — default `root.composed("menu.border", "menu.border-alpha", root.fo...`
+- `menu.scrim` (color) — default `root.composed("menu.scrim", "menu.scrim-alpha", root.back...`
+- `menu.selectedBackground` (color) — default `root.composed("menu.selected-background", "menu.selected-...`
+- `menu.selectedText` (color) — default `root.pick("menu.selected-text", root.accent)`
+- `menu.selectedBorder` (color) — default `root.composed("menu.selected-border", "menu.selected-bord...`
+- `polkit` (QtObject) — default `QtObject {`
+- `polkit.background` (color) — default `root.composed("polkit.background", "polkit.background-alp...`
+- `polkit.text` (color) — default `root.pick("polkit.text", root.foreground)`
+- `polkit.textError` (color) — default `root.pick("polkit.text-error", root.urgent)`
+- `polkit.border` (color) — default `root.composed("polkit.border", "polkit.border-alpha", roo...`
+- `polkit.borderError` (color) — default `root.composed("polkit.border-error", "polkit.border-alpha...`
+- `polkit.accent` (color) — default `root.pick("polkit.accent", root.accent)`
+- `polkit.scrim` (color) — default `root.composed("polkit.scrim", "polkit.scrim-alpha", root....`
+- `lock` (QtObject) — default `QtObject {`
+- `lock.background` (color) — default `root.composed("lock.background", "lock.background-alpha",...`
+- `lock.text` (color) — default `root.pick("lock.text", root.foreground)`
+- `lock.placeholder` (color) — default `root.shellValues["lock.placeholder"] ? root.flatColor(roo...`
+- `lock.textError` (color) — default `root.pick("lock.text-error", root.urgent)`
+- `lock.border` (color) — default `root.composed("lock.border", "lock.border-alpha", root.fo...`
+- `lock.borderActive` (color) — default `root.composed("lock.border-active", "lock.border-alpha", ...`
+- `lock.borderError` (color) — default `root.composed("lock.border-error", "lock.border-alpha", r...`
+- `lock.selection` (color) — default `root.composed("lock.selection", "lock.selection-alpha", r...`
+- `imagePicker` (QtObject) — default `QtObject {`
+- `imagePicker.scrim` (color) — default `root.composed("image-picker.scrim", "image-picker.scrim-a...`
+- `imagePicker.text` (color) — default `root.pick("image-picker.text", root.foreground)`
+- `imagePicker.selectedBorder` (color) — default `root.composed("image-picker.selected-border", "image-pick...`
+- `imagePicker.unselectedBorder` (color) — default `root.composed("image-picker.unselected-border", "image-pi...`
+- `loadColors` (function)
+- `themeShellValues` (var) — default `({})`
+- `userShellValues` (var) — default `({})`
+- `parseShell` (function)
+- `mergeShell` (function)
+- `loadShell` (function)
+- `loadUserShell` (function)
+- `colorsFile` (FileView) — default `FileView {`
+- `shellFile` (FileView) — default `FileView {`
+- `userShellFile` (FileView) — default `FileView {`
+
+## Style
+
+- `cornerRadius` (int) — default `0`
+- `gapsOut` (int) — default `5`
+- `styleOverrides` (var) — default `({})`
+- `styleRawNum` (function)
+- `styleNum` (function)
+- `styleAlpha` (function)
+- `styleString` (function)
+- `normalColorToken` (string) — default `styleString("normal-color", "foreground")`
+- `hoverColorToken` (string) — default `styleString("hover-cursor-color", "foreground")`
+- `selectedColorToken` (string) — default `styleString("selected-color", "foreground")`
+- `pressedColorToken` (string) — default `styleString("pressed-color", hoverColorToken)`
+- `focusColorToken` (string) — default `styleString("focus-color", hoverColorToken)`
+- `selectionColorToken` (string) — default `styleString("selection-color", "foreground")`
+- `normalBorderWidth` (int) — default `Math.max(0, Math.round(styleNum("normal-border-width", 1)))`
+- `hoverBorderWidth` (int) — default `Math.max(0, Math.round(styleNum("hover-cursor-border-widt...`
+- `selectedBorderWidth` (int) — default `Math.max(0, Math.round(styleNum("selected-border-width", ...`
+- `focusBorderWidth` (int) — default `Math.max(0, Math.round(styleNum("focus-border-width", hov...`
+- `normalFillAlpha` (real) — default `styleAlpha("normal-fill-alpha", 0.04)`
+- `hoverFillAlpha` (real) — default `styleAlpha("hover-cursor-fill-alpha", 0.08)`
+- `selectedFillAlpha` (real) — default `styleAlpha("selected-fill-alpha", 0.18)`
+- `pressedFillAlpha` (real) — default `styleAlpha("pressed-fill-alpha", 0.22)`
+- `focusFillAlpha` (real) — default `styleAlpha("focus-fill-alpha", hoverFillAlpha)`
+- `selectionFillAlpha` (real) — default `styleAlpha("selection-fill-alpha", 0.35)`
+- `normalBorderAlpha` (real) — default `styleAlpha("normal-border-alpha", 0.4)`
+- `hoverBorderAlpha` (real) — default `styleAlpha("hover-cursor-border-alpha", 0.25)`
+- `selectedBorderAlpha` (real) — default `styleAlpha("selected-border-alpha", 1.0)`
+- `focusBorderAlpha` (real) — default `styleAlpha("focus-border-alpha", hoverBorderAlpha)`
+- `colorFromHex` (function)
+- `resolveStateColor` (function)
+- `normalStateColor` (function)
+- `hoverStateColor` (function)
+- `selectedStateColor` (function)
+- `pressedStateColor` (function)
+- `focusStateColor` (function)
+- `selectionStateColor` (function)
+- `normalFillFor` (function)
+- `hoverFillFor` (function)
+- `selectedFillFor` (function)
+- `pressedFillFor` (function)
+- `focusFillFor` (function)
+- `selectionFillFor` (function)
+- `normalBorderFor` (function)
+- `hoverBorderFor` (function)
+- `selectedBorderFor` (function)
+- `focusBorderFor` (function)
+- `controlFill` (function)
+- `controlBorder` (function)
+- `controlBorderWidth` (function)
+- `normalFill` (color) — default `normalFillFor(Color.foreground, Color.accent, Color.urgent)`
+- `hoverFill` (color) — default `hoverFillFor(Color.foreground, Color.accent, Color.urgent)`
+- `selectedFill` (color) — default `selectedFillFor(Color.foreground, Color.accent, Color.urg...`
+- `pressedFill` (color) — default `pressedFillFor(Color.foreground, Color.accent, Color.urgent)`
+- `focusFillColor` (color) — default `focusFillFor(Color.foreground, Color.accent, Color.urgent)`
+- `normalBorderColor` (color) — default `normalBorderFor(Color.foreground, Color.accent, Color.urg...`
+- `hoverBorderColor` (color) — default `hoverBorderFor(Color.foreground, Color.accent, Color.urgent)`
+- `selectedBorderColor` (color) — default `selectedBorderFor(Color.foreground, Color.accent, Color.u...`
+- `focusBorderColor` (color) — default `focusBorderFor(Color.foreground, Color.accent, Color.urgent)`
+- `selectedAccentFill` (color) — default `Util.alpha(Color.accent, selectedFillAlpha)`
+- `selectionFill` (color) — default `selectionFillFor(Color.foreground, Color.accent, Color.ur...`
+- `spacingScale` (real) — default `1.0`
+- `spacingScaleWithFont` (bool) — default `true`
+- `spacingOverrides` (var) — default `({})`
+- `effectiveSpacingScale` (real) — default `spacingScale * (spacingScaleWithFont ? fontScale : 1)`
+- `spaceReal` (function)
+- `space` (function)
+- `spacingToken` (function)
+- `spacing` (QtObject) — default `QtObject {`
+- `spacing.scale` (real) — default `root.effectiveSpacingScale`
+- `spacing.hairline` (int) — default `root.space(1)`
+- `spacing.xxs` (int) — default `root.spacingToken("xxs", 2)`
+- `spacing.xs` (int) — default `root.spacingToken("xs", 3)`
+- `spacing.sm` (int) — default `root.spacingToken("sm", 4)`
+- `spacing.md` (int) — default `root.spacingToken("md", 6)`
+- `spacing.lg` (int) — default `root.spacingToken("lg", 8)`
+- `spacing.xl` (int) — default `root.spacingToken("xl", 10)`
+- `spacing.xxl` (int) — default `root.spacingToken("xxl", 12)`
+- `spacing.xxxl` (int) — default `root.spacingToken("xxxl", 14)`
+- `spacing.huge` (int) — default `root.spacingToken("huge", 18)`
+- `spacing.controlGap` (int) — default `root.spacingToken("control-gap", 8)`
+- `spacing.controlPaddingX` (int) — default `root.spacingToken("control-padding-x", 10)`
+- `spacing.controlPaddingY` (int) — default `root.spacingToken("control-padding-y", 6)`
+- `spacing.inputPaddingY` (int) — default `root.spacingToken("input-padding-y", 7)`
+- `spacing.controlHeight` (int) — default `root.spacingToken("control-height", 28)`
+- `spacing.popupRowHeight` (int) — default `root.spacingToken("popup-row-height", 28)`
+- `spacing.dropdownWidth` (int) — default `root.spacingToken("dropdown-width", 240)`
+- `spacing.searchableDropdownWidth` (int) — default `root.spacingToken("searchable-dropdown-width", 260)`
+- `spacing.numberFieldWidth` (int) — default `root.spacingToken("number-field-width", 120)`
+- `spacing.searchablePopupMinHeight` (int) — default `root.spacingToken("searchable-popup-min-height", 220)`
+- `spacing.rowGap` (int) — default `root.spacingToken("row-gap", 8)`
+- `spacing.rowPaddingX` (int) — default `root.spacingToken("row-padding-x", 12)`
+- `spacing.labelGap` (int) — default `root.spacingToken("label-gap", 4)`
+- `spacing.panelGap` (int) — default `root.spacingToken("panel-gap", 14)`
+- `spacing.panelPadding` (int) — default `root.spacingToken("panel-padding", 18)`
+- `spacing.popupPadding` (int) — default `root.spacingToken("popup-padding", 14)`
+- `fontFamily` (string) — default `"monospace"`
+- `resolvedFontFamily` (string) — default `"monospace"`
+- `fontBaseSize` (int) — default `12`
+- `fontOverrides` (var) — default `({})`
+- `barOverrides` (var) — default `({})`
+- `barScaleWithFont` (bool) — default `true`
+- `fontScale` (real) — default `Math.max(1 / 12, fontBaseSize / 12)`
+- `fontPx` (function)
+- `fontToken` (function)
+- `barToken` (function)
+- `boolToken` (function)
+- `menuFontFamily` (string) — default `{`
+- `font` (QtObject) — default `QtObject {`
+- `font.family` (string) — default `root.fontFamily`
+- `font.resolvedFamily` (string) — default `root.resolvedFontFamily`
+- `font.menuFamily` (string) — default `root.menuFontFamily`
+- `font.baseSize` (int) — default `root.fontBaseSize`
+- `font.caption` (int) — default `root.fontToken("caption",       root.fontPx(0.833))`
+- `font.bodySmall` (int) — default `root.fontToken("body-small",    root.fontPx(0.917))`
+- `font.body` (int) — default `root.fontToken("body",          root.fontPx(1.0))`
+- `font.subtitle` (int) — default `root.fontToken("subtitle",      root.fontPx(1.083))`
+- `font.title` (int) — default `root.fontToken("title",         root.fontPx(1.167))`
+- `font.heading` (int) — default `root.fontToken("heading",       root.fontPx(1.333))`
+- `font.display` (int) — default `root.fontToken("display",       root.fontPx(2.0))`
+- `font.displayLarge` (int) — default `root.fontToken("display-large", root.fontPx(2.333))`
+- `font.iconSmall` (int) — default `root.fontToken("icon-small",    bodySmall)`
+- `font.icon` (int) — default `root.fontToken("icon",          title)`
+- `font.iconLarge` (int) — default `root.fontToken("icon-large",    root.fontPx(1.5))`
+- `bar` (QtObject) — default `QtObject {`
+- `bar.sizeHorizontal` (int) — default `root.barToken("size-horizontal", 26)`
+- `bar.sizeVertical` (int) — default `root.barToken("size-vertical",   28)`
+- `bar.iconSlot` (int) — default `root.barToken("icon-slot",       27)`
+- `bar.iconCanvas` (int) — default `root.barToken("icon-canvas",     16)`
+- `bar.iconFont` (int) — default `root.barToken("icon-font",       13)`
+- `bar.statusSlot` (int) — default `root.barToken("status-slot",     21)`
+- `refresh` (function)
+- `scheduleRefresh` (function)
+- `applyRoundingJson` (function)
+- `applyGapsOutJson` (function)
+- `applyShellValues` (function)
+- `hyprctlProc` (Process) — default `Process {`
+- `gapsOutProc` (Process) — default `Process {`
+- `resolveFontFamily` (function)
+- `fcMatchProc` (Process) — default `Process {`
+- `fontconfigFile` (FileView) — default `FileView {`
+- `refreshTimer` (Timer) — default `Timer {`
+- `windowNoGapsToggle` (FileView) — default `FileView {`
+
+## Util
+
+- `clamp` (function)
+- `clampAlpha` (function)
+- `wheelSteps` (function)
+- `alpha` (function)
+- `fileUrl` (function)
+- `shellQuote` (function)
+- `execDetached` (function)
+- `isPlainObject` (function)
+- `canonicalWidgetId` (function)
+- `decodeBase64` (function)
+- `cloneJson` (function)
+- `parseModuleJson` (function)
+- `editsFilter` (function)
+- `editedFilter` (function)
+- `normalizeLayoutEntry` (function)
+- `normalizeLayoutSection` (function)
+- `normalizeLayout` (function)
