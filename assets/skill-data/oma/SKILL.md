@@ -32,6 +32,9 @@ types). Exports:
 - `derived(() => expr)` — recomputes when dependencies change; read via `.value`.
 - `config(defaults)` — per-instance store `{ get, set, subscribe }`. Persists to
   `~/.config/omarchy/<id>.json` automatically via the generated bridge.
+- `snap(value)` — deep-plain clone that unwraps reactive proxies. Required
+  before state crosses any JS→QML/IPC boundary (the bridge does it for
+  properties; you do it for `JSON.stringify` over IPC — see bridge.md).
 - `emit(event, payload)` / `on(event, fn)` — in-process event bus (surfaces
   share one shell process).
 

@@ -66,7 +66,19 @@ export function louder() {
 - `config(defaults, { validate(key, value) })` sanitizes persisted input at
   seed time: return the value to store, or undefined/null to keep the default.
   Persisted blobs are otherwise trusted on load — validate anything that comes
-  from an older version of the plugin.
+  from an older version of the plugin. **`validate` runs on seed only**;
+  `set()` writes pass through untouched, so mirror the limits with `coerce`
+  (below) or in your own setters.
+- `config(defaults, { coerce(key, value) })` sanitizes writes at `set()` time:
+  return the value to store, or undefined/null to reject the write (old value
+  kept). Pair it with `validate` so the persisted store can never drift
+  outside the limits the seed enforces:
+  ```js
+  export const settings = config({ volume: 80 }, {
+    validate(key, value) { return key === "volume" ? Math.min(100, Math.max(0, value)) : value; },
+    coerce(key, value)    { return key === "volume" ? Math.min(100, Math.max(0, value)) : value; },
+  });
+  ```
 - `config(defaults, { debounceMs })` overrides the 200ms write debounce (the
   slowest config in a plugin wins).
 - `onReady(cb)` fires exactly once, when the settings file has been read and

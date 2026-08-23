@@ -29,6 +29,15 @@ Extracted from the installed shell source (`/usr/share/omarchy/shell/`
   array. First-party non-bar plugins are implicitly enabled unless listed in
   `disabledPlugins[]`.
 
+One placement suffices for the whole plugin — the shell treats any entry in
+`bar.layout` **or** `plugins[]` as "enabled", so a `bar-widget` plugin with
+additional kinds (service/overlay) still loads them from its `bar.layout`
+entry alone. The tricky transition: a plugin whose kinds gained `bar-widget`
+**after** an earlier enable stays stuck in `plugins[]` — `setEnabled` skips
+the widget branch for ids it already knows and `putBarWidget` silently reports
+`"ok"` without placing anything, so neither can migrate it. `oma install`
+detects and migrates this state automatically; `oma status` flags it.
+
 ## Surface injection (what the shell sets on your root object)
 
 Panels/overlays/menus/services are loaded through a `Loader`; on load it sets,
@@ -92,6 +101,10 @@ Semantics worth knowing:
   inside must call `shell.hide(pluginId)` so the shell's state stays in sync.
 - `call(id, method, arg)` invokes an arbitrary function on a loaded surface —
   this is how launcher entries with custom actions work.
+- `putBarWidget` **silently no-ops** when the widget id is already known in
+  `plugins[]`: it returns `"ok"` while placing nothing (the underlying
+  `moveBarEntry` error is discarded). Re-run `oma install` to migrate such a
+  stuck placement instead of calling it manually.
 
 `call` sharp edges (all verified against the shipped shell):
 
@@ -108,6 +121,12 @@ Semantics worth knowing:
 - **Args are raw strings.** `"$@"` passes through verbatim — there is no JSON
   decoding. A quoted test string arrives containing the literal quote
   characters; pass already-encoded JSON and decode in the action.
+- **Desktop Exec cannot carry empty args.** A launcher `exec` like
+  `omarchy-shell <id> startFocus ''` loses the empty argument when the
+  `.desktop` entry is parsed, and a typed `IpcHandler` param is mandatory —
+  the launcher then fails with "Too few arguments provided". Give
+  launcher-targeted actions a **zero-arg handler** that applies defaults:
+  `function startFocus(): string { logic.startFocus(""); return "ok" }`.
 
 ## Settings persistence convention
 

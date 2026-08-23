@@ -628,6 +628,9 @@ shown are the shipped values - they track the active Omarchy theme.
 
 ## ToggleSwitch
 
+Bare on/off switch — no `label`/`description`/`clicked`. For a labeled
+control use `Toggle` (label, description, checked, clicked).
+
 **Signals**
 - `toggled()`
 - `hovered(bool isHovered)`

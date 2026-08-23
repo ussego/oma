@@ -14,7 +14,7 @@ as a library — one static binary, no external toolchain required. The primary 
 | `oma build [dir]` | bundle `src/index.js` or `.ts` → `ui/index.mjs` + generate `ui/<Name>.qml` |
 | `oma package [dir]` | build, then assemble `pkg/` (manifest.json + ui/) and `omarchy plugin validate` |
 | `oma validate [dir]` | `omarchy plugin validate` |
-| `oma install [dir]` | copy into `~/.config/omarchy/plugins/<id>/`, enable it (rescan + poll + `omarchy plugin enable`), create oma.json launcher entries |
+| `oma install [dir]` | build when stale, copy into `~/.config/omarchy/plugins/<id>/`, enable it (rescan + poll + `omarchy plugin enable`), place bar-widgets in `bar.layout`, create oma.json launcher entries |
 | `oma uninstall [dir]` | remove from the plugins dir, delete oma-managed entries and the persisted `<id>.json` settings file |
 | `oma launcher add [name] [--action a] [--exec cmd] [--icon i] [--comment c] [--terminal]` | upsert an entry into oma.json launchers[] (wizard when no name) and write the .desktop file |
 | `oma launcher remove [names...] \| --all` | drop entries from oma.json launchers[] (multi-select wizard when unnamed) and delete their oma-managed .desktop files |
@@ -63,6 +63,10 @@ assembles `pkg/` with `manifest.json` + `ui/` and validates it with
   comes from `-a`, else the OS user), `kinds`, camelCase `entryPoints`
   (`ui/<Surface>.qml`). Description defaults to
   "A custom plugin for Omarchy - built with Oma" when `-d` is omitted.
+- `AGENTS.md` — a short agent brief: the bridge contract, generated-artifacts
+  rule and the runtime sharp edges (snap before IPC, first-bind guards,
+  zero-arg launcher handlers), pinned to the scaffolding CLI version. Extend
+  it with project conventions; oma never overwrites it.
 - `src/index.js` — a starter `state({...})` + config + actions, importing from
   `"@oma/runtime"` (resolved to the runtime embedded in the binary at build
   time — no import map). `.ts` entries work equally; esbuild strips annotations.
@@ -160,7 +164,13 @@ Behavior:
 - End users installing via `omarchy plugin add <url> --enable` don't run oma;
   for them the generated `ui/Service.qml` + `ui/LauncherWriter.qml` pair writes
   the entries on first shell load (oma build generates both automatically when
-  `launchers[]` is non-empty).
+  `launchers[]` is non-empty). A **custom** `ui/Service.qml` is never touched —
+  `oma build` only writes the `ui/LauncherWriter.qml` helper and warns that you
+  must add `LauncherWriter {}` to the service yourself.
+- `exec` is written to the `.desktop` file verbatim, and desktop entries
+  **cannot carry empty string arguments** (`omarchy-shell <id> action ''` loses
+  the `''` at parse time). Target parameterized actions through a zero-arg
+  handler that applies defaults (see the plugin contract's call sharp edges).
 
 ## Hot reload caveat
 

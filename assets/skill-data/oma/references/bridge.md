@@ -75,6 +75,19 @@ If you must cross the boundary yourself (e.g. passing state into a custom
 component), use `Logic.snap(...)` / `snap()` from the runtime to get the same
 plain projection.
 
+The same rule applies when state leaves the shell: `JSON.stringify` of a
+proxied state field **inside QJSEngine** serializes it as a plain object with
+numeric keys (`{"0":…}`) instead of an array — the bridge's own assignments
+snap, but your code must too. `snap()` before any IPC return:
+
+```js
+import { snap } from "@oma/runtime";
+
+export function snapshot() {
+  return JSON.stringify(snap(tasks.items)); // [{"id":...}, ...], not {"0":...}
+}
+```
+
 ## Bridged derived values
 
 `derived(fn, { bridge: "propName" })` exports land as read-only auto-NOTIFY
@@ -100,7 +113,8 @@ overrides the interval). The lifecycle, in order:
 2. `__omaLoad` → `Logic.__omaBindRef(saved, root.__omaPersist)` — the runtime
    seeds every `config()` store with saved values over defaults, fires
    `onReady` callbacks, and stores the returned handle in `omaSink`.
-3. `omaReady` flips `true`. Before that: reads see defaults, writes are
+3. `omaReady` flips `true` (bind `logic.omaReady` in QML to gate UI on it).
+   Before that: reads see defaults, writes are
    buffered (and win over the disk seed — they are deliberate mutations).
    Gate UI on `omaReady` only when reads-before-ready matter.
 4. `config().set()` → debounced write through the **newest live bridge**.
