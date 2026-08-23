@@ -851,7 +851,7 @@ func (m wizardModel) View() string {
 		b.WriteString(muted.Render("  oma install  "))
 		b.WriteString(muted.Render("- install into Omarchy"))
 		b.WriteString("\n")
-		b.WriteString(muted.Render("  npm i -D @jsr/oma__runtime  "))
+		b.WriteString(muted.Render("  npx jsr add @oma/runtime  "))
 		b.WriteString(muted.Render("- optional editor types for @oma/runtime"))
 		b.WriteString("\n")
 		b.WriteString(muted.Render("  npx skills add ussego/oma  "))

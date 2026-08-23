@@ -271,8 +271,9 @@ export function toggleStartup() {
 
 // packageJSONFor emits the minimal manifest for a JS plugin project: ESM,
 // private (never published), name only so editors and package managers are
-// happy. The runtime lib itself is optional — installing @jsr/oma__runtime
-// gives editors types for the "@oma/runtime" specifier.
+// happy. The runtime lib itself is optional — running `npx jsr add
+// @oma/runtime` gives editors types for the "@oma/runtime" specifier (it
+// writes the .npmrc mapping that makes the specifier resolve).
 func packageJSONFor(project string) string {
 	data, _ := json.Marshal(map[string]any{
 		"name":    strings.ToLower(project),
