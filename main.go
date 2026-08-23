@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -10,7 +11,7 @@ import (
 
 func main() {
 	if len(os.Args) >= 2 && (os.Args[1] == "--version" || os.Args[1] == "version" || os.Args[1] == "-V") {
-		fmt.Println("oma " + cliVersion)
+		fmt.Println("oma " + version())
 		return
 	}
 	if len(os.Args) < 2 {
@@ -155,9 +156,38 @@ func main() {
 	}
 }
 
-// cliVersion is shown in the bun-style help header. Release builds override
-// it via -ldflags "-X main.cliVersion=vX.Y.Z".
-var cliVersion = "0.1.0"
+// cliVersion is set by release builds via
+// -ldflags "-X main.cliVersion=X.Y.Z" (no v prefix). When not injected
+// (go install, go build, go test), version() falls back to the module
+// version embedded by the toolchain, or "dev" for local builds.
+var cliVersion = ""
+
+// version returns the CLI version: the ldflags-injected value when present,
+// otherwise the module version recorded by the toolchain (go install pkg@vX
+// embeds it), otherwise "dev" for local builds.
+func version() string {
+	if cliVersion != "" {
+		return cliVersion
+	}
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		return versionFromBuildInfo(bi)
+	}
+	return "dev"
+}
+
+// versionFromBuildInfo maps a build info's main module version to a display
+// version. The v prefix is stripped so go install output matches the injected
+// release format ("0.1.2", not "v0.1.2").
+func versionFromBuildInfo(bi *debug.BuildInfo) string {
+	if bi == nil {
+		return "dev"
+	}
+	v := bi.Main.Version
+	if v != "" && v != "(devel)" {
+		return strings.TrimPrefix(v, "v")
+	}
+	return "dev"
+}
 
 // cmdHelp holds the per-command help shown by 'oma <command> --help',
 // structured like bun's subcommand help pages.
@@ -313,7 +343,7 @@ func usage() {
 	var b strings.Builder
 	b.WriteString(groupColor["accent"].Render("oma"))
 	b.WriteString(plain.Render(" is an SDK for Omarchy plugins - one project, shared logic, multiple surfaces. "))
-	b.WriteString(dim.Render("(" + cliVersion + ")"))
+	b.WriteString(dim.Render("(" + version() + ")"))
 	b.WriteString("\n\n")
 	b.WriteString(bold.Render("Usage: "))
 	b.WriteString(bold.Render("oma <command> "))

@@ -625,7 +625,10 @@ The CLI ships as one static binary (pure Go, CGO off, assets embedded) for
 `linux/amd64` and `linux/arm64`.
 
 - **Version**: `var cliVersion` in `main.go`; release builds inject it with
-  `-ldflags "-X main.cliVersion=<tag>"`. `oma --version` prints it.
+  `-ldflags "-X main.cliVersion=<tag>"`. `oma --version` prints it. When the
+  flag is not injected (`go install pkg@version`, local `go build`), the CLI
+  falls back to the module version embedded by the toolchain
+  (`runtime/debug.ReadBuildInfo`), or `dev` outside a tagged checkout.
 - **Releases**: push a `v*` tag; `.github/workflows/release.yml` builds both
   arches, tars them as `oma-<tag>-linux-<arch>.tar.gz`, publishes checksums to
   the GitHub Release.

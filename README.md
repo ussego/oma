@@ -122,7 +122,9 @@ go test ./...
 Run `mise run live` after any change to the runtime, bridge template, or
 bundler - hermetic tests can't catch QJSEngine-only breakage. Release builds
 inject the version via `-X main.cliVersion=<tag>`; see
-`.github/workflows/release.yml`.
+`.github/workflows/release.yml`. `go install` and local builds skip the
+injection and fall back to the module version embedded by the toolchain
+(`oma --version` reports the real tag, or `dev` outside a tagged checkout).
 
 ## Contributing
 

@@ -30,6 +30,10 @@ go build -trimpath -ldflags "-s -w -X main.cliVersion=dev" -o dist/oma .
 go test ./...
 ```
 
+The ldflags injection is only needed to pin a release tag; un-injected
+builds (`go install`, plain `go build`) report the module version embedded
+by the toolchain automatically.
+
 ## Testing
 
 | Check | Command | When |

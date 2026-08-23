@@ -294,14 +294,14 @@ func TestStatusLibVersionLine(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := status()
-	if !strings.Contains(out, "@oma/runtime 9.9.9") || !strings.Contains(out, "cli is "+cliVersion) {
+	if !strings.Contains(out, "@oma/runtime 9.9.9") || !strings.Contains(out, "cli is "+version()) {
 		t.Fatalf("missing version-drift line:\n%s", out)
 	}
 
-	if err := os.WriteFile(libPkg, []byte(`{"version":"`+cliVersion+`"}`), 0o644); err != nil {
+	if err := os.WriteFile(libPkg, []byte(`{"version":"`+version()+`"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if out := status(); !strings.Contains(out, "@oma/runtime "+cliVersion) || strings.Contains(out, "cli is") {
+	if out := status(); !strings.Contains(out, "@oma/runtime "+version()) || strings.Contains(out, "cli is") {
 		t.Fatalf("matching version misread:\n%s", out)
 	}
 }

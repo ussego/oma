@@ -143,8 +143,8 @@ func runStatus(dir string) error {
 	switch {
 	case libVersion == "":
 		line(infoMark, "lib", muted.Render("not installed (optional: npx jsr add @oma/runtime)"))
-	case libVersion != cliVersion:
-		line(badMark, "lib", "@oma/runtime "+libVersion+muted.Render(" - cli is "+cliVersion+" (npx jsr add @oma/runtime)"))
+	case libVersion != version():
+		line(badMark, "lib", "@oma/runtime "+libVersion+muted.Render(" - cli is "+version()+" (npx jsr add @oma/runtime)"))
 	default:
 		line(okMark, "lib", "@oma/runtime "+libVersion)
 	}
