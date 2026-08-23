@@ -22,7 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/ussego/oma/main/install.sh | bash
 **Go**:
 
 ```sh
-go install github.com/ussego/oma/cli@latest
+go install github.com/ussego/oma@latest
 ```
 
 **Arch Linux** - AUR registration is closed, build from the hosted PKGBUILD:
@@ -114,9 +114,8 @@ mise run live         # tier-1 offscreen verification against real Quickshell (s
 mise run live-shell   # tier-2 full round trip - RESTARTS YOUR SHELL
 mise run install-dev  # symlink dist/oma to ~/.local/bin/oma-dev
 
-# or plain Go from cli/
-cd cli
-go build -trimpath -ldflags "-s -w -X main.cliVersion=dev" -o ../dist/oma .
+# or plain Go from the repo root
+go build -trimpath -ldflags "-s -w -X main.cliVersion=dev" -o dist/oma ./cli
 go test ./...
 ```
 

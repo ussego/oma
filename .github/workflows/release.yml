@@ -18,23 +18,22 @@ jobs:
 
             - uses: actions/setup-go@v5
               with:
-                  go-version-file: cli/go.mod
+                  go-version-file: go.mod
 
             - name: Build
-              working-directory: cli
               env:
                   GOARCH: ${{ matrix.arch }}
                   CGO_ENABLED: "0"
               run: |
                   VERSION="${GITHUB_REF_NAME#v}"
                   go build -trimpath -ldflags "-s -w -X main.cliVersion=${VERSION}" \
-                    -o "oma-${GITHUB_REF_NAME}-linux-${GOARCH}" .
+                    -o "oma-${GITHUB_REF_NAME}-linux-${GOARCH}" ./cli
 
             - name: Package
               run: |
                   DIR="oma-${GITHUB_REF_NAME}-linux-${{ matrix.arch }}"
                   mkdir -p "dist/${DIR}"
-                  cp "cli/oma-${GITHUB_REF_NAME}-linux-${{ matrix.arch }}" "dist/${DIR}/oma"
+                  cp "oma-${GITHUB_REF_NAME}-linux-${{ matrix.arch }}" "dist/${DIR}/oma"
                   cp README.md "dist/${DIR}/" 2>/dev/null || true
                   tar -czf "dist/${DIR}.tar.gz" -C dist "${DIR}"
 

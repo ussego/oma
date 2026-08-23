@@ -25,9 +25,8 @@ mise run live         # tier-1 offscreen verification against real Quickshell (s
 mise run live-shell   # tier-2 full round trip — RESTARTS YOUR SHELL
 mise run install-dev  # symlink dist/oma to ~/.local/bin/oma-dev
 
-# or plain Go from cli/
-cd cli
-go build -trimpath -ldflags "-s -w -X main.cliVersion=dev" -o ../dist/oma .
+# or plain Go from the repo root
+go build -trimpath -ldflags "-s -w -X main.cliVersion=dev" -o dist/oma ./cli
 go test ./...
 ```
 
@@ -35,7 +34,7 @@ go test ./...
 
 | Check | Command | When |
 |---|---|---|
-| Hermetic Go tests | `cd cli && go test -count=1 ./...` | always |
+| Hermetic Go tests | `go test -count=1 ./...` (repo root) | always |
 | Skills CLI smoke | `bash skills_test.sh` | always |
 | Runtime behavior | `node cli/assets/oma.test.js` | after runtime changes |
 | Tier 1 (offscreen) | `mise run live` | **after any runtime/bridge/bundler change** |

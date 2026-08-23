@@ -632,7 +632,8 @@ The CLI ships as one static binary (pure Go, CGO off, assets embedded) for
 - **Channels**: AUR `oma-bin` (`packaging/aur/PKGBUILD` — bump pkgver +
   checksums per release) and the curl installer (`install.sh`, installs to
   `$PREFIX` or `~/.local/bin`). Module path is
-  `github.com/ussego/oma/cli`, so `go install ...@latest` also works.
+  `github.com/ussego/oma` (go.mod at the repo root), so
+  `go install github.com/ussego/oma@latest` installs the `oma` binary.
 - Keep release artifacts reproducible: same inputs → same flags; `-trimpath`
   always.
 

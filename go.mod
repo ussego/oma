@@ -1,4 +1,4 @@
-module github.com/ussego/oma/cli
+module github.com/ussego/oma
 
 go 1.27
 
