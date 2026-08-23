@@ -30,7 +30,7 @@ go install github.com/ussego/oma@latest
 ```sh
 mkdir -p /tmp/oma-bin && cd /tmp/oma-bin
 curl -fsSL -O https://raw.githubusercontent.com/ussego/oma/main/packaging/aur/PKGBUILD
-makepkg -si
+makepkg -si && cd / && rm -rf /tmp/oma-bin
 ```
 
 ## Quickstart
