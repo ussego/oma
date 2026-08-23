@@ -947,6 +947,13 @@ func gitignore() string {
 # built ui/index.mjs + ui/<Name>.qml must be committed — omarchy plugin add
 # clones HEAD and runs omarchy plugin validate without building
 pkg/
+
+# dependencies (any package manager)
+node_modules/
+
+# logs and OS cruft
+*.log
+.DS_Store
 `
 }
 

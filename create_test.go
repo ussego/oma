@@ -181,3 +181,36 @@ func TestRunCreateNonInteractive(t *testing.T) {
 		t.Fatal("expected validation error")
 	}
 }
+
+// The scaffold gitignore must ignore node_modules and local cruft, but never
+// the built ui/ payload — omarchy plugin add clones HEAD and validates
+// ui/index.mjs + the bridge without running oma build.
+func TestScaffoldGitignore(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+
+	if err := runCreate([]string{"proj", "-s", "service", "-a", "tester"}); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(filepath.Join("proj", ".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data)
+	for _, want := range []string{"pkg/", "node_modules/", "*.log", ".DS_Store"} {
+		if !strings.Contains(content, want) {
+			t.Errorf(".gitignore missing %q", want)
+		}
+	}
+	// entries, not comment mentions: ui/ is committed build output
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "ui") {
+			t.Errorf("gitignore entry %q ignores committed build output", line)
+		}
+	}
+}
