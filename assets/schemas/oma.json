@@ -8,7 +8,7 @@
   "properties": {
     "$schema": {
       "type": "string",
-      "description": "Pointer to this schema so editors autocomplete and validate."
+      "description": "Versioned raw URL of this schema, written by oma create / surface add."
     },
     "icon": {
       "type": "string",

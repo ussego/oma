@@ -12,6 +12,7 @@ import (
 // manifest.json). Configuration is data, not code: the Go CLI reads it today
 // and omarchy itself can consume it natively later without running anything.
 type omaConfig struct {
+	Schema    string             `json:"$schema,omitempty"` // editor pointer, written once
 	Icon      string             `json:"icon,omitempty"`    // launcher icons: freedesktop name, path, or URL
 	BarIcon   string             `json:"barIcon,omitempty"` // bar-widget glyph (OpticalGlyph text)
 	Panel     *panelConfig       `json:"panel,omitempty"`
@@ -36,6 +37,55 @@ type launcherEntryDef struct {
 
 // defaultIcon is used when neither the entry nor oma.json sets an icon.
 const defaultIcon = "application-x-executable"
+
+// schemaURL returns the $schema pointer for oma.json files. Release
+// versions pin the raw URL to their immutable tag; anything else (dev
+// builds, +dirty suffixes, go pseudo-versions) falls back to main.
+func schemaURL() string {
+	return schemaURLFor(version())
+}
+
+func schemaURLFor(v string) string {
+	if !isPlainVersion(v) {
+		return "https://raw.githubusercontent.com/ussego/oma/main/assets/schemas/oma.json"
+	}
+	return "https://raw.githubusercontent.com/ussego/oma/v" + v + "/assets/schemas/oma.json"
+}
+
+// isPlainVersion reports whether v is a bare X.Y.Z (release tags only),
+// rejecting dev, +dirty suffixes, and go pseudo-versions.
+func isPlainVersion(v string) bool {
+	if v == "" || strings.Count(v, ".") != 2 {
+		return false
+	}
+	for _, r := range v {
+		if r == '.' {
+			continue
+		}
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// schemaVersionFromURL extracts the version pinned by a $schema URL
+// (".../v0.1.5/assets/..."), or "" for the main fallback or anything else.
+func schemaVersionFromURL(u string) string {
+	rest, ok := strings.CutPrefix(u, "https://raw.githubusercontent.com/ussego/oma/")
+	if !ok {
+		return ""
+	}
+	ref, _, ok := strings.Cut(rest, "/")
+	if !ok || !strings.HasPrefix(ref, "v") {
+		return ""
+	}
+	v := strings.TrimPrefix(ref, "v")
+	if !isPlainVersion(v) {
+		return ""
+	}
+	return v
+}
 
 // loadOMAConfig reads dir/oma.json. A missing file is a valid empty config —
 // absent launchers[] means nothing is ever created.

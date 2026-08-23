@@ -224,14 +224,7 @@ func userNamespace() string {
 }
 
 func omaJSONStubFor(hasPanel bool, mode string) string {
-	schema, err := ensureSchema()
-	if err != nil {
-		schema = ""
-	}
-	stub := map[string]any{}
-	if schema != "" {
-		stub["$schema"] = schema
-	}
+	stub := map[string]any{"$schema": schemaURL()}
 	if hasPanel && mode != "" && mode != "attached" {
 		stub["panel"] = map[string]any{"mode": mode}
 	}

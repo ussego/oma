@@ -99,10 +99,11 @@ identity; leaving it empty silently breaks those lookups.
 
 Optional opt-in file at the project root. Data only (JSON) — the Go CLI reads
 it today and omarchy itself can consume it natively later. `oma create`
-scaffolds a stub pointing `$schema` at the schema materialized by oma under
-`~/.local/share/oma/schemas/oma.json` (extracted from the binary), so editors
-autocomplete and validate every key (`action` is enum-checked, unknown keys
-rejected by editors).
+scaffolds a stub pointing `$schema` at the schema's versioned raw URL
+(`https://raw.githubusercontent.com/ussego/oma/v<tag>/assets/schemas/oma.json` —
+immutable tags; dev builds fall back to `main`), so editors autocomplete and
+validate every key (`action` is enum-checked, unknown keys rejected by
+editors).
 
 ```json
 {

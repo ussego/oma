@@ -26,3 +26,45 @@ func TestVersionFromBuildInfo(t *testing.T) {
 		})
 	}
 }
+
+func TestSchemaURLFor(t *testing.T) {
+	const base = "https://raw.githubusercontent.com/ussego/oma/"
+	cases := []struct {
+		name    string
+		version string
+		want    string
+	}{
+		{"release tag", "0.1.5", base + "v0.1.5/assets/schemas/oma.json"},
+		{"dev", "dev", base + "main/assets/schemas/oma.json"},
+		{"dirty tagged build", "0.1.5+dirty", base + "main/assets/schemas/oma.json"},
+		{"go pseudo-version", "0.1.5-0.20260823152300-abc123def456", base + "main/assets/schemas/oma.json"},
+		{"empty", "", base + "main/assets/schemas/oma.json"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := schemaURLFor(tc.version); got != tc.want {
+				t.Fatalf("schemaURLFor(%q) = %q, want %q", tc.version, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSchemaVersionFromURL(t *testing.T) {
+	cases := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{"pinned tag", "https://raw.githubusercontent.com/ussego/oma/v0.1.5/assets/schemas/oma.json", "0.1.5"},
+		{"main fallback", "https://raw.githubusercontent.com/ussego/oma/main/assets/schemas/oma.json", ""},
+		{"unrelated url", "https://example.com/schema.json", ""},
+		{"empty", "", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := schemaVersionFromURL(tc.url); got != tc.want {
+				t.Fatalf("schemaVersionFromURL(%q) = %q, want %q", tc.url, got, tc.want)
+			}
+		})
+	}
+}

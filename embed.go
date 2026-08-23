@@ -10,14 +10,12 @@ import (
 )
 
 // Everything the CLI needs ships inside the binary: runtime, bundler shim,
-// JSON schema, skills docs. No SDK checkout, no OMA_ROOT, no Deno.
+// skills docs. No SDK checkout, no OMA_ROOT, no Deno. The oma.json schema
+// stays committed in the repo and is referenced by versioned raw URL.
 
 //go:embed assets/oma.js
 //go:embed assets/globalthis-shim.mjs
 var assetFS embed.FS
-
-//go:embed assets/schemas/oma.json
-var schemaFS embed.FS
 
 //go:embed assets/skill-data
 var skillFS embed.FS
@@ -53,35 +51,6 @@ func assetPath(name string) (string, error) {
 	}
 	if err := os.WriteFile(path, content, 0o644); err != nil {
 		return "", err
-	}
-	return path, nil
-}
-
-// ensureSchema materializes the bundled oma.json schema under the user data
-// dir and returns its path. Project oma.json files point $schema here, so
-// editors get autocomplete without any SDK checkout on the machine.
-func ensureSchema() (string, error) {
-	dataHome := os.Getenv("XDG_DATA_HOME")
-	if dataHome == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		dataHome = filepath.Join(home, ".local", "share")
-	}
-	content, err := schemaFS.ReadFile("assets/schemas/oma.json")
-	if err != nil {
-		return "", err
-	}
-	dir := filepath.Join(dataHome, "oma", "schemas")
-	path := filepath.Join(dir, "oma.json")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
-	}
-	if existing, err := os.ReadFile(path); err != nil || !bytes.Equal(existing, content) {
-		if err := os.WriteFile(path, content, 0o644); err != nil {
-			return "", err
-		}
 	}
 	return path, nil
 }

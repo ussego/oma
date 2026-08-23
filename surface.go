@@ -324,9 +324,7 @@ func persistPanelMode(dir, mode string) error {
 		raw["panel"] = panel
 	}
 	if _, ok := raw["$schema"]; !ok {
-		if schema, err := ensureSchema(); err == nil {
-			raw["$schema"] = schema
-		}
+		raw["$schema"] = schemaURL()
 	}
 	out, err := json.MarshalIndent(raw, "", "  ")
 	if err != nil {

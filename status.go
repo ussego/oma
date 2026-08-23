@@ -149,6 +149,22 @@ func runStatus(dir string) error {
 		line(okMark, "lib", "@oma/runtime "+libVersion)
 	}
 
+	// schema pointer: the version pinned in oma.json vs the running cli
+	if cfgErr == nil {
+		switch pinned := schemaVersionFromURL(cfg.Schema); {
+		case pinned == "":
+			if cfg.Schema != "" {
+				line(infoMark, "schema", muted.Render("main (dev scaffold)"))
+			}
+		case pinned == version():
+			line(okMark, "schema", "v"+pinned)
+		case isPlainVersion(version()):
+			line(badMark, "schema", muted.Render("pinned to v"+pinned+" - cli is "+version()+" (update $schema in oma.json)"))
+		default:
+			line(infoMark, "schema", "v"+pinned)
+		}
+	}
+
 	// tools
 	line(toolMark("omarchy-shell"), "tools", "omarchy-shell"+toolNote("omarchy-shell"))
 	line(toolMark("omarchy"), "", "omarchy"+toolNote("omarchy"))

@@ -352,7 +352,7 @@ func upsertLauncherDef(dir string, def launcherEntryDef) (bool, error) {
 		}
 	} else if !os.IsNotExist(err) {
 		return false, err
-	} else if schema, err := ensureSchema(); err == nil && schema != "" {
+	} else if schema := schemaURL(); schema != "" {
 		raw["$schema"] = schema
 	}
 

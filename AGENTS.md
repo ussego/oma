@@ -579,9 +579,10 @@ Multiple selections must be supported.
 Optional opt-in file at the project root. **Configuration is data, not code** —
 JSON only, so the Go CLI reads it today and omarchy itself (plugin add / shell)
 can consume it natively later without running anything. `oma create` scaffolds
-a stub carrying `"$schema"` pointing at the schema oma materializes under
-`~/.local/share/oma/schemas/oma.json` (extracted from the binary), so editors
-autocomplete and validate every available key.
+a stub carrying `"$schema"` pointing at the schema's versioned raw URL
+(`https://raw.githubusercontent.com/ussego/oma/v<tag>/assets/schemas/oma.json` —
+tags are immutable; dev builds fall back to `main`), so editors autocomplete
+and validate every available key without a local copy.
 
 ```json
 {
