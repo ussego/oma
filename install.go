@@ -40,6 +40,20 @@ func pluginDest(projectDir string) (string, error) {
 // optional config must not fail the install).
 func install(projectDir string) error {
 	start := time.Now()
+	m, err := readManifest(filepath.Join(projectDir, "manifest.json"))
+	if err != nil {
+		return err
+	}
+	// install ships whatever the project declares; a stale or missing build
+	// would deploy a broken plugin (stale bundle = silent behavior drift), so
+	// build first when the sources moved. The dev loop builds right before
+	// install, so this never triggers there.
+	if installNeedsBuild(projectDir, m) {
+		noteLine("src changed since last build - building")
+		if err := build(projectDir); err != nil {
+			return err
+		}
+	}
 	dest, err := pluginDest(projectDir)
 	if err != nil {
 		return err
@@ -54,12 +68,15 @@ func install(projectDir string) error {
 		return err
 	}
 	okLine(displayPath(dest))
-	m, err := readManifest(filepath.Join(projectDir, "manifest.json"))
-	if err != nil {
-		return err
-	}
 	if err := enableInstalled(m.ID); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not enable %s: %v\n", m.ID, err)
+	}
+	// bar-widgets must live in bar.layout; the shell cannot migrate an entry
+	// a previous enable left in plugins[] - do the migration through shell IPC.
+	if contains(m.Kinds, "bar-widget") {
+		if err := placeBarWidget(m); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not place bar widget: %v\n", err)
+		}
 	}
 	written, err := writeLauncherEntries(projectDir)
 	if err != nil {
@@ -71,6 +88,18 @@ func install(projectDir string) error {
 	}
 	doneLine("installed", time.Since(start))
 	return nil
+}
+
+// installNeedsBuild reports whether the bundle or bridge is missing or older
+// than the sources - the same freshness rule oma status prints.
+func installNeedsBuild(dir string, m manifest) bool {
+	stale, missing := buildStale(dir, filepath.Join(dir, "ui", "index.mjs"), bridgePath(dir, m))
+	return stale || missing
+}
+
+// bridgePath is the path build writes for the plugin's bridge.
+func bridgePath(dir string, m manifest) string {
+	return filepath.Join(dir, "ui", bridgeBaseName(capitalize(m.Name), m.Kinds)+".qml")
 }
 
 // enableInstalled mirrors what omarchy-plugin-add does after cloning:

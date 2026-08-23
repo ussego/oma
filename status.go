@@ -131,6 +131,14 @@ func runStatus(dir string) error {
 		line(infoMark, "settings", muted.Render("none yet (config() writes on first change)"))
 	}
 
+	// bar-widget placement: a widget stuck in plugins[] never reaches the bar,
+	// and the shell reports success while placing nothing - surface it here.
+	if contains(m.Kinds, "bar-widget") {
+		if data, err := os.ReadFile(shellConfigPath()); err == nil && stuckBarWidget(data, m.ID) {
+			line(badMark, "placement", "bar-widget stuck in plugins[] - re-run oma install to place it in bar.layout")
+		}
+	}
+
 	// shell-log scan: generated-bridge TypeErrors are the signature of a
 	// dead persistence sink; surface them here instead of in `oma log`.
 	if hint := recentBridgeBreakage(bridge); hint != "" {
