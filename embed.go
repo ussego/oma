@@ -15,6 +15,7 @@ import (
 
 //go:embed assets/oma.js
 //go:embed assets/globalthis-shim.mjs
+//go:embed assets/agents.md
 var assetFS embed.FS
 
 //go:embed assets/skill-data

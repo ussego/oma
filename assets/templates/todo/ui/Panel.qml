@@ -39,8 +39,10 @@ Item {
 			shell.hide(root.pluginId)
 	}
 
-	readonly property int pendingCount: logic.items.filter(function (t) { return !t.done }).length
-	readonly property int doneCount: logic.items.length - pendingCount
+	// Guard: bridge fields are undefined until the bridge's first push on
+	// load, so list reads must not assume items exists yet.
+	readonly property int pendingCount: (logic.items || []).filter(function (t) { return !t.done }).length
+	readonly property int doneCount: (logic.items || []).length - pendingCount
 
 	Shortcut {
 		sequence: "Esc"
@@ -94,7 +96,7 @@ Item {
 						color: Color.muted
 						font.family: Style.font.family
 						font.pixelSize: Style.font.caption
-						visible: logic.items.length > 0
+						visible: (logic.items || []).length > 0
 					}
 				}
 
@@ -133,7 +135,7 @@ Item {
 				anchors.topMargin: Style.spacing.lg
 				anchors.bottomMargin: Style.spacing.sm
 				clip: true
-				model: logic.items
+				model: logic.items || []
 				spacing: 0
 
 				delegate: Item {

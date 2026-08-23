@@ -230,12 +230,15 @@ func runSurfaceAdd(dir string, args []string) error {
 		}
 	}
 
+	// A service surface owns the IPC target; attached panels must not
+	// register a duplicate handler (see attachedPanelSkeleton).
+	serviceHost := contains(m.Kinds, "service")
 	for _, k := range missing {
 		var files []genFile
 		if k == "panel" {
-			files = panelSurfaceFiles(panelMode, m.ID, bridge, icon)
+			files = panelSurfaceFiles(panelMode, m.ID, bridge, icon, serviceHost)
 		} else {
-			files = surfaceFiles(k, m.ID, bridge, icon)
+			files = surfaceFiles(k, m.ID, bridge, icon, serviceHost)
 		}
 		for _, f := range files {
 			qmlPath := filepath.Join(dir, filepath.FromSlash(f.rel))

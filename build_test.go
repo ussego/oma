@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -211,6 +212,18 @@ func TestLauncherServiceCreatesStub(t *testing.T) {
 			t.Errorf("LauncherWriter missing %q", want)
 		}
 	}
+	// The desktop payload must travel base64-encoded: literal newlines inside
+	// the JS string trip the multiline-strings qmllint warning, and a bare
+	// `import Quickshell` trips unused-imports (only Quickshell.Io is used).
+	if strings.Contains(hs, "Type=Application") {
+		t.Error("LauncherWriter embeds raw desktop content - must be base64-encoded")
+	}
+	if strings.Contains(hs, "import Quickshell\n") {
+		t.Error("LauncherWriter has an unused bare `import Quickshell`")
+	}
+	if !strings.Contains(hs, "base64 -d") {
+		t.Error("LauncherWriter missing base64 decode step")
+	}
 
 	m, err := readManifest(filepath.Join(project, "manifest.json"))
 	if err != nil {
@@ -252,6 +265,39 @@ func TestLauncherServiceCustomKept(t *testing.T) {
 	m, _ := readManifest(filepath.Join(project, "manifest.json"))
 	if contains(m.Kinds, "service") {
 		t.Fatalf("custom service caused manifest registration: %v", m.Kinds)
+	}
+}
+
+// launcherBashScript must reproduce the desktop content byte-for-byte
+// through bash, including the JS string unescaping the QML layer applies
+// (base64 makes every byte literal - no quoting or backslash survives).
+func TestLauncherWriterRoundTrip(t *testing.T) {
+	cases := []string{
+		"[Desktop Entry]\nType=Application\nName=Play Next Music\nX-Oma-Managed=true\n",
+		"Name=It's a 'quoted' name\nComment=C:\\tools\\x\nX-Oma-Managed=true\n",
+		"Name=Empty line follows\n\nX-Oma-Managed=true\n",
+		"Name=100% done - 50/50\nX-Oma-Managed=true\n",
+	}
+	for _, content := range cases {
+		script := launcherBashScript("test.desktop", content)
+		// the QML layer wraps the script in a JS double-quoted string and
+		// escapes double quotes; replicate JS string unescaping
+		qml := strings.ReplaceAll(script, `"`, `\"`)
+		js := strings.NewReplacer(`\\`, "\x00", `\"`, `"`, `\'`, `'`, `\n`, "\n").Replace(qml)
+		js = strings.ReplaceAll(js, "\x00", `\`)
+		dir := t.TempDir()
+		cmd := exec.Command("bash", "-c", js)
+		cmd.Env = append(os.Environ(), "HOME="+dir)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("bash -c failed: %v\n%s\nscript: %s", err, out, js)
+		}
+		got, err := os.ReadFile(filepath.Join(dir, ".local", "share", "applications", "test.desktop"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != content {
+			t.Errorf("round-trip mismatch:\n got: %q\nwant: %q", got, content)
+		}
 	}
 }
 

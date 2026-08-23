@@ -70,6 +70,59 @@ func TestScaffold(t *testing.T) {
 			t.Fatalf("BarWidget.qml missing %q", want)
 		}
 	}
+
+	// AGENTS.md: the project brief for AI tooling ships with every scaffold
+	// and pins the runtime version + bridge name.
+	agents, err := os.ReadFile(filepath.Join(target, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	as := string(agents)
+	for _, want := range []string{
+		userNamespace() + ".omusic", // dynamic id
+		"Omusic.qml",
+		"state({...})",
+		"snap()",
+		"oma build",
+	} {
+		if !strings.Contains(as, want) {
+			t.Fatalf("AGENTS.md missing %q", want)
+		}
+	}
+	if strings.Contains(as, "__ID__") || strings.Contains(as, "__BRIDGE__") {
+		t.Fatal("AGENTS.md still contains template placeholders")
+	}
+}
+
+// Attached panels in a project with a service must not register a duplicate
+// IPC handler (the service owns the target); without a service the panel
+// keeps its own handler.
+func TestScaffoldPanelManageIPC(t *testing.T) {
+	dir := t.TempDir()
+
+	withService := filepath.Join(dir, "mixed")
+	if _, err := scaffoldWithOptions(withService, []string{"panel", "service"}, scaffoldOptions{Author: "tester"}); err != nil {
+		t.Fatal(err)
+	}
+	panel, err := os.ReadFile(filepath.Join(withService, "ui", "Panel.qml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(panel), "manageIpc: false") {
+		t.Fatalf("mixed panel must disable its IPC handler:\n%s", panel)
+	}
+
+	panelOnly := filepath.Join(dir, "panelonly")
+	if _, err := scaffoldWithOptions(panelOnly, []string{"panel"}, scaffoldOptions{Author: "tester"}); err != nil {
+		t.Fatal(err)
+	}
+	panel2, err := os.ReadFile(filepath.Join(panelOnly, "ui", "Panel.qml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(panel2), "manageIpc") {
+		t.Fatalf("panel-only project must keep its IPC handler:\n%s", panel2)
+	}
 }
 
 func TestQmlSafeBridge(t *testing.T) {

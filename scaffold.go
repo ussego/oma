@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -20,6 +21,9 @@ type manifest struct {
 	EntryPoints   map[string]string `json:"entryPoints"`
 	Framework     string            `json:"framework,omitempty"`
 	KeepLoaded    bool              `json:"keepLoaded,omitempty"`
+	BarWidget     *struct {
+		DefaultSection string `json:"defaultSection,omitempty"`
+	} `json:"barWidget,omitempty"`
 }
 
 // Entry point keys are camelCase per Omarchy's plugin schema.
@@ -188,18 +192,31 @@ func scaffoldWithOptions(name string, kinds []string, opts scaffoldOptions) ([]s
 		icon = cfg.BarIcon
 	}
 
+	// A service surface is the always-on API host: attached panels built from
+	// qs.Ui Panel would otherwise duplicate its IPC target.
+	serviceHost := contains(kinds, "service")
+
 	for _, k := range kinds {
 		var files []genFile
 		if k == "panel" {
-			files = panelSurfaceFiles(mode, m.ID, bridge, icon)
+			files = panelSurfaceFiles(mode, m.ID, bridge, icon, serviceHost)
 		} else {
-			files = surfaceFiles(k, m.ID, bridge, icon)
+			files = surfaceFiles(k, m.ID, bridge, icon, serviceHost)
 		}
 		for _, f := range files {
 			if err := add(f.rel, writeFile(filepath.Join(dir, f.rel), f.content)); err != nil {
 				return nil, err
 			}
 		}
+	}
+
+	// Agent brief: the project must be self-describing for AI tooling, and
+	// the scaffolded facts (bridge contract, sharp edges) are the ones every
+	// agent-built plugin stumbles on first.
+	if agents, err := agentsSkeleton(m, version()); err != nil {
+		return nil, err
+	} else if err := add("AGENTS.md", writeFile(filepath.Join(dir, "AGENTS.md"), agents)); err != nil {
+		return nil, err
 	}
 
 	// Template gallery: overwrite the skeletons with a full example when the
@@ -349,13 +366,14 @@ type genFile struct {
 }
 
 // surfaceFiles returns the QML files a kind scaffolds. "panel" emits the
-// bar-attached pair (button widget + anchored popup).
-func surfaceFiles(kind, id, bridge, icon string) []genFile {
+// bar-attached pair (button widget + anchored popup). serviceHost tells the
+// panel skeleton a service owns the IPC target (avoids a duplicate handler).
+func surfaceFiles(kind, id, bridge, icon string, serviceHost bool) []genFile {
 	switch kind {
 	case "panel":
 		return []genFile{
 			{rel: "ui/" + qmlName["bar-widget"], content: barPanelHostSkeleton(id)},
-			{rel: "ui/" + qmlName["panel"], content: attachedPanelSkeleton(id)},
+			{rel: "ui/" + qmlName["panel"], content: attachedPanelSkeleton(id, serviceHost)},
 		}
 	case "bar-widget":
 		return []genFile{{rel: "ui/" + qmlName[kind], content: barWidgetSkeleton(id, bridge, icon)}}
@@ -370,7 +388,7 @@ func surfaceFiles(kind, id, bridge, icon string) []genFile {
 // attached: bar-widget host + attached popup (default)
 // window:   standalone FloatingWindow panel (no bar widget)
 // both:     bar-widget host + attached popup + standalone FloatingWindow (PanelWindow.qml)
-func panelSurfaceFiles(mode, id, bridge, icon string) []genFile {
+func panelSurfaceFiles(mode, id, bridge, icon string, serviceHost bool) []genFile {
 	switch mode {
 	case "window":
 		return []genFile{
@@ -379,13 +397,13 @@ func panelSurfaceFiles(mode, id, bridge, icon string) []genFile {
 	case "both":
 		return []genFile{
 			{rel: "ui/" + qmlName["bar-widget"], content: barPanelHostSkeletonWithIcon(id, icon)},
-			{rel: "ui/" + qmlName["panel"], content: attachedPanelSkeleton(id)},
+			{rel: "ui/" + qmlName["panel"], content: attachedPanelSkeleton(id, serviceHost)},
 			{rel: "ui/PanelWindow.qml", content: floatingPanelSkeleton(id, bridge)},
 		}
 	default: // attached
 		return []genFile{
 			{rel: "ui/" + qmlName["bar-widget"], content: barPanelHostSkeletonWithIcon(id, icon)},
-			{rel: "ui/" + qmlName["panel"], content: attachedPanelSkeleton(id)},
+			{rel: "ui/" + qmlName["panel"], content: attachedPanelSkeleton(id, serviceHost)},
 		}
 	}
 }
@@ -563,8 +581,16 @@ BarWidget {
 }
 
 // attachedPanelSkeleton is a qs.Ui.Panel popup anchored under the bar widget
-// that owns it (injected via anchorItem).
-func attachedPanelSkeleton(id string) string {
+// that owns it (injected via anchorItem). serviceHost disables the panel's
+// own IPC handler: qs.Ui Panel registers one per ipcTarget, and a service in
+// the same project is the always-on API host - two handlers on one target
+// just warn ("another handler is registered for target ...") and hide which
+// one serves calls.
+func attachedPanelSkeleton(id string, serviceHost bool) string {
+	ipc := fmt.Sprintf("\tmoduleName: %q\n\tipcTarget: %q\n", id, id)
+	if serviceHost {
+		ipc += "\t// The service in this project owns the IPC target; the panel's\n\t// generated handler would only duplicate it.\n\tmanageIpc: false\n"
+	}
 	return fmt.Sprintf(`import QtQuick
 import Quickshell
 import qs.Commons
@@ -573,9 +599,7 @@ import qs.Ui
 // Popup panel tied to the bar widget that loads it (see BarWidget.qml).
 Panel {
 	id: root
-	moduleName: %q
-	ipcTarget: %q
-
+%s
 	// Injected by the host bar widget.
 	property var anchorItem: null
 	property var hostWidget: null
@@ -636,7 +660,7 @@ Panel {
 		}
 	}
 }
-`, id, id, id)
+`, ipc, id)
 }
 
 // floatingPanelSkeleton is a standalone draggable window panel (native-app style).
@@ -864,16 +888,16 @@ Item {
 func launcherWriterSkeleton(id string, entries []struct{ Filename, Content string }) string {
 	var procs strings.Builder
 	for i, e := range entries {
-		esc := strings.ReplaceAll(e.Content, "'", "'\\''")
-		cmd := fmt.Sprintf("mkdir -p $HOME/.local/share/applications && printf '%%s' '%s' > $HOME/.local/share/applications/%s", esc, e.Filename)
+		cmd := launcherBashScript(e.Filename, e.Content)
 		qmlCmd := strings.ReplaceAll(cmd, "\"", "\\\"")
 		fmt.Fprintf(&procs, "  Process {\n    command: [\"bash\", \"-c\", \"%s\"]\n    running: true\n  }\n", qmlCmd)
 		if i < len(entries)-1 {
 			procs.WriteString("\n")
 		}
 	}
+	// Only QtQuick + Quickshell.Io are used - a bare `import Quickshell`
+	// triggers the unused-imports qmllint warning on every build.
 	return fmt.Sprintf(`import QtQuick
-import Quickshell
 import Quickshell.Io
 
 %s
@@ -886,6 +910,36 @@ Item {
 %s
 }
 `, launcherWriterMarker, id, id, procs.String())
+}
+
+// launcherBashScript builds the bash -c body that writes one .desktop file.
+// The content travels base64-encoded so the generated QML string stays on a
+// single line (qmllint rejects literal line breaks inside JS strings) and no
+// quoting, apostrophe, backslash or percent byte in the content can corrupt
+// the command. base64 is coreutils, same as the bash/mkdir/printf it joins.
+func launcherBashScript(filename, content string) string {
+	encoded := base64.StdEncoding.EncodeToString([]byte(content))
+	return fmt.Sprintf("mkdir -p $HOME/.local/share/applications && printf '%%s' '%s' | base64 -d > $HOME/.local/share/applications/%s", encoded, filename)
+}
+
+// agentsSkeleton returns the scaffolded AGENTS.md: a short, project-shaped
+// brief for AI tooling. It pins the generating CLI version (like the oma.json
+// $schema) and points at the skills for depth instead of duplicating them, so
+// it cannot drift from the docs. Users extend it with project conventions;
+// oma never overwrites it.
+func agentsSkeleton(m manifest, version string) (string, error) {
+	data, err := assetFS.ReadFile("assets/agents.md")
+	if err != nil {
+		return "", fmt.Errorf("embedded agents.md: %w", err)
+	}
+	repl := strings.NewReplacer(
+		"__ID__", m.ID,
+		"__NAME__", m.Name,
+		"__DESC__", m.Description,
+		"__VERSION__", version,
+		"__BRIDGE__", bridgeBaseName(capitalize(m.Name), m.Kinds),
+	)
+	return repl.Replace(string(data)), nil
 }
 
 func gitignore() string {
