@@ -7,7 +7,7 @@ case "$CARCH" in
 	aarch64) goarch=arm64 ;;
 esac
 pkgname=oma-bin
-pkgver=0.2.1
+pkgver=0.2.2
 pkgrel=1
 pkgdesc="SDK and CLI for building Omarchy shell plugins - plain JS logic, QML surfaces, single static binary"
 arch=(x86_64 aarch64)
@@ -18,8 +18,8 @@ provides=(oma)
 conflicts=(oma)
 source_x86_64=("${url}/releases/download/v${pkgver}/oma-v${pkgver}-linux-amd64.tar.gz")
 source_aarch64=("${url}/releases/download/v${pkgver}/oma-v${pkgver}-linux-arm64.tar.gz")
-sha256sums_x86_64=("f1a04d66e770b7a9f57509c59956694b623e69cf2dfc84e178b8b9220f017079")
-sha256sums_aarch64=("0713c986a6144b9479654ff1c6aeb249c3002bc7f3909f79ddd94dcd8ad0869e")
+sha256sums_x86_64=("94a3e78961011f741eeb1e2a14cf8becd6fd9edbd01052a6b8a9f10dc21d534d")
+sha256sums_aarch64=("3d6840310b595837c5b476a5544f06515677f33fe8fcb119689ffbccd9bfe6a4")
 
 package() {
 	install -Dm0755 "oma-v${pkgver}-linux-${goarch}/oma" "${pkgdir}/usr/bin/oma"
