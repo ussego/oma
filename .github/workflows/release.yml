@@ -102,3 +102,27 @@ jobs:
             - name: Publish
               working-directory: jsr
               run: npx jsr publish --allow-dirty
+
+    # Keeps packaging/aur/PKGBUILD current: pkgver + checksums straight from
+    # the release's sha256sums.txt, committed only when something changed.
+    # The GITHUB_TOKEN push does not re-trigger workflows, so no loop.
+    bump-pkgbuild:
+        needs: release
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Update packaging/aur/PKGBUILD
+              run: bash scripts/bump-pkgbuild.sh "${GITHUB_REF_NAME#v}"
+
+            - name: Commit when changed
+              run: |
+                  if git diff --quiet packaging/aur/PKGBUILD; then
+                    echo "no changes"
+                  else
+                    git config user.name "oma-bot"
+                    git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                    git add packaging/aur/PKGBUILD
+                    git commit -m "chore: bump AUR PKGBUILD to ${GITHUB_REF_NAME}"
+                    git push
+                  fi

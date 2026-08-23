@@ -48,3 +48,7 @@ oma-dev --version
 
 [tasks.clean]
 run = "rm -rf dist"
+
+[tasks.release]
+description = "Tag and push a release; the workflow builds, publishes, and bumps the AUR PKGBUILD"
+run = "bash scripts/release.sh $@"

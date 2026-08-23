@@ -634,11 +634,17 @@ The CLI ships as one static binary (pure Go, CGO off, assets embedded) for
   flag is not injected (`go install pkg@version`, local `go build`), the CLI
   falls back to the module version embedded by the toolchain
   (`runtime/debug.ReadBuildInfo`), or `dev` outside a tagged checkout.
-- **Releases**: push a `v*` tag; `.github/workflows/release.yml` builds both
-  arches, tars them as `oma-<tag>-linux-<arch>.tar.gz`, publishes checksums to
-  the GitHub Release.
-- **Channels**: AUR `oma-bin` (`packaging/aur/PKGBUILD` — bump pkgver +
-  checksums per release) and the curl installer (`install.sh`, installs to
+- **Releases**: `mise run release <X.Y.Z>` tags `vX.Y.Z` and pushes it (it
+  validates the version, a clean tree, and main being current). The
+  tag-push workflow builds both arches, tars them as
+  `oma-<tag>-linux-<arch>.tar.gz`, publishes checksums to the GitHub
+  Release, publishes `@oma/runtime` to JSR, and auto-bumps
+  `packaging/aur/PKGBUILD` (pkgver + checksums, committed only when
+  changed) via the `bump-pkgbuild` job.
+- **Channels**: AUR `oma-bin` (`packaging/aur/PKGBUILD` — kept current by
+  the release workflow; submitting to aur.archlinux.org is the only manual
+  step, it needs the maintainer's AUR SSH key) and the curl installer
+  (`install.sh`, installs to
   `$PREFIX` or `~/.local/bin`). Module path is
   `github.com/ussego/oma` (go.mod at the repo root), so
   `go install github.com/ussego/oma@latest` installs the `oma` binary.

@@ -120,16 +120,16 @@ Open a PR against `main`. The checklist:
 
 ## Releasing
 
-1. Commit everything, then `git tag v0.1.0 && git push origin main --tags` —
-   the workflow builds both arches, publishes tarballs + checksums and
-   publishes `@oma/runtime` to JSR.
-2. Before the JSR job: link `@oma/runtime` to the repo in the jsr.io package
+1. Run the tier-2 live gate (`mise run live-shell`) before tagging.
+2. Commit everything, then `mise run release 0.1.6` — it validates the
+   version, requires a clean tree and current main, then tags and pushes.
+   The workflow builds both arches, publishes tarballs + checksums and
+   `@oma/runtime` to JSR, and auto-bumps `packaging/aur/PKGBUILD` (pkgver +
+   checksums, committed only when changed).
+3. Before the JSR job: link `@oma/runtime` to the repo in the jsr.io package
    settings (one-time).
-3. After the workflow finishes: fill the
-   `REPLACE_WITH_sha256sums.txt_VALUE` placeholders in
-   `packaging/aur/PKGBUILD` with the release's `sha256sums.txt` values. AUR
-   account registration is currently closed; Arch users build from the hosted
-   PKGBUILD instead (`curl .../packaging/aur/PKGBUILD && makepkg -si` - see
-   the README install section), and the package is submitted to AUR as
-   `oma-bin` when registration reopens.
-4. Run the tier-2 live gate (`mise run live-shell`) before tagging.
+4. AUR: account registration is currently closed; Arch users build from the
+   hosted PKGBUILD instead (`curl .../packaging/aur/PKGBUILD && makepkg -si`
+   - see the README install section). When registration reopens, submit the
+   (workflow-kept-current) package as `oma-bin` — this needs the
+   maintainer's AUR SSH key, so it stays manual.
