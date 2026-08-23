@@ -1,7 +1,7 @@
 # Maintainer: usse <https://github.com/ussego>
 # Bump pkgver + checksums on each oma release (checksums: release sha256sums.txt).
 pkgname=oma-bin
-pkgver=0.1.0
+pkgver=0.1.3
 pkgrel=1
 pkgdesc="SDK and CLI for building Omarchy shell plugins - plain JS logic, QML surfaces, single static binary"
 arch=(x86_64 aarch64)
@@ -12,8 +12,8 @@ provides=(oma)
 conflicts=(oma)
 source_x86_64=("${url}/releases/download/v${pkgver}/oma-v${pkgver}-linux-amd64.tar.gz")
 source_aarch64=("${url}/releases/download/v${pkgver}/oma-v${pkgver}-linux-arm64.tar.gz")
-sha256sums_x86_64=("5b0ef24729416e0dd0f822e33613c99c824e2e63f72a2e8967c4ef515271be88")
-sha256sums_aarch64=("573e3e6068e7c4e78c8e98ab1e37e3349132393f7d7dff98cd893bc8acf562e6")
+sha256sums_x86_64=("aa6486461449607254f38efc22aa55cb046d753a0f363dc87c2ce79fcde3eb58")
+sha256sums_aarch64=("5d1206523745ee2f00d77aaeef744055d6ed6cd9f8f24b62d41c5204b08eef4b")
 
 package() {
 	install -Dm0755 "oma-v${pkgver}-linux-${CARCH}/oma" "${pkgdir}/usr/bin/oma"
