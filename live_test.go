@@ -208,7 +208,7 @@ Scope {
 		id: logic
 		// FileView loads asynchronously - only assert once the persistence
 		// bootstrap has actually bound (see __omaLoad).
-		onOmaBoundChanged: if (omaBound) Qt.callLater(runProbe)
+		onOmaReadyChanged: if (omaReady) Qt.callLater(runProbe)
 		function runProbe() {
 			logic.applySavedVolume()
 			console.log("BRIDGE-SEEDED " + logic.volume)
@@ -252,6 +252,123 @@ Scope {
 	}
 	if !wrote {
 		t.Fatalf("write path failed (%d never reached %s)\noutput:\n%s", fixtureSeedSave, settingsPath, out.String())
+	}
+	if hit := qmlBreakageRe.FindString(out.String()); hit != "" {
+		t.Fatalf("QML breakage detected (%q):\n%s", hit, out.String())
+	}
+}
+
+// TestOffscreenBridgeChurn is the RUNTIME-001 regression: the shell destroys
+// a hidden panel's bridge QtObject while the JS module survives, then mounts
+// a fresh bridge. Writes after the swap must still reach disk (the runtime
+// re-targets its write channel on every bind; the old per-instance latch
+// used to route them into the destroyed bridge and lose everything).
+func TestOffscreenBridgeChurn(t *testing.T) {
+	if _, err := exec.LookPath("quickshell"); err != nil {
+		t.Skip("quickshell not installed")
+	}
+	project, id := fixturePaths(t)
+
+	settingsPath := settingsFileFor(id)
+	if err := os.WriteFile(settingsPath, []byte(fmt.Sprintf(`{"savedVolume": %d}`, fixtureSeedRead)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Remove(settingsPath) })
+
+	harness := t.TempDir()
+	for _, f := range []string{"Livetest.qml", "index.mjs"} {
+		data, err := os.ReadFile(filepath.Join(project, "ui", f))
+		if err != nil {
+			t.Fatalf("copy %s: %v", f, err)
+		}
+		if err := os.WriteFile(filepath.Join(harness, f), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Bridge A mounts, seeds, writes 88, then is destroyed and replaced by
+	// bridge B; B must accept the 89 write and flush it to disk.
+	writeFile(filepath.Join(harness, "shell.qml"), `import QtQuick
+import Quickshell
+
+Scope {
+	id: root
+	property bool showBridge: true
+	property int stage: 0
+
+	Loader {
+		id: holder
+		sourceComponent: root.showBridge ? bridgeComp : null
+	}
+
+	Component {
+		id: bridgeComp
+		Livetest {}
+	}
+
+	// Reconnects to each mounted bridge (A, then B) and drives the churn
+	// sequence; everything is reached through holder.item, so no id scoping
+	// across the Loader boundary is needed.
+	Connections {
+		target: holder.item
+		function onOmaReadyChanged() {
+			if (!holder.item || !holder.item.omaReady) return
+			if (root.stage === 0) {
+				root.stage = 1
+				holder.item.applySavedVolume()
+				console.log("CHURN-A-SEEDED " + holder.item.volume)
+				holder.item.setSavedVolume(88)
+				Qt.callLater(function() {
+					root.showBridge = false // destroy A: flush + unbind
+					Qt.callLater(function() {
+						root.showBridge = true // mount B: re-target sink
+					})
+				})
+			} else if (root.stage === 1) {
+				root.stage = 2
+				console.log("CHURN-B-SEEDED")
+				holder.item.setSavedVolume(89) // must reach disk via B
+			}
+		}
+	}
+
+	Timer {
+		interval: 3000
+		running: true
+		onTriggered: Qt.quit()
+	}
+}
+`)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "quickshell", "-n", "-p", harness)
+	cmd.Env = append(os.Environ(), "QT_QPA_PLATFORM=offscreen")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("launch quickshell: %v", err)
+	}
+
+	// B's write is debounced - poll the disk for the final value.
+	wrote := false
+	for i := 0; i < 40 && ctx.Err() == nil; i++ {
+		if data, err := os.ReadFile(settingsPath); err == nil && bytes.Contains(data, []byte(fmt.Sprint(fixtureSeedSave+1))) {
+			wrote = true
+			break
+		}
+		time.Sleep(150 * time.Millisecond)
+	}
+	cancel()
+	_ = cmd.Wait()
+
+	for _, want := range []string{"CHURN-A-SEEDED", "CHURN-B-SEEDED"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("missing %q (churn sequence did not complete)\noutput:\n%s", want, out.String())
+		}
+	}
+	if !wrote {
+		t.Fatalf("write after bridge replacement failed (%d never reached %s)\noutput:\n%s", fixtureSeedSave+1, settingsPath, out.String())
 	}
 	if hit := qmlBreakageRe.FindString(out.String()); hit != "" {
 		t.Fatalf("QML breakage detected (%q):\n%s", hit, out.String())

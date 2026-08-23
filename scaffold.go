@@ -19,6 +19,7 @@ type manifest struct {
 	Kinds         []string          `json:"kinds"`
 	EntryPoints   map[string]string `json:"entryPoints"`
 	Framework     string            `json:"framework,omitempty"`
+	KeepLoaded    bool              `json:"keepLoaded,omitempty"`
 }
 
 // Entry point keys are camelCase per Omarchy's plugin schema.

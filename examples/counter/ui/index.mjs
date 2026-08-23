@@ -1,4 +1,4 @@
-// ../../.cache/oma/oma.js
+// ../../../../.cache/oma/oma.js
 var active = null;
 var Cell = class {
   /**
@@ -83,48 +83,119 @@ function objectProxy(cell, target) {
   return wrap(target, true);
 }
 var configs = [];
-var persistFn = null;
-var bound = false;
+var readyCallbacks = [];
+var seeded = false;
+var lastSaved = null;
+var sink = null;
+var sinks = [];
+var pending = /* @__PURE__ */ new Set();
+var dirty = false;
+var maxDebounceMs = 200;
 function schedulePersist() {
-  if (!persistFn) return;
+  if (!sink) {
+    dirty = true;
+    return;
+  }
+  dirty = false;
   const merged = {};
   for (const c of configs) {
-    for (const [key, value] of c.store) merged[key] = value;
+    for (const [key, value] of c.store) merged[c.prefix + key] = value;
   }
-  persistFn(merged);
+  sink(merged);
 }
-function config(defaults) {
+function seedStore(c, data) {
+  for (const key of c.keys) {
+    const k = c.prefix + key;
+    if (pending.has(k)) continue;
+    let raw = data[k];
+    if (raw === void 0 || raw === null) continue;
+    if (c.validate) raw = c.validate(key, raw);
+    if (raw !== void 0 && raw !== null) c.store.set(key, raw);
+  }
+}
+function config(arg1, arg2) {
+  let prefix = "";
+  let defaults = arg1;
+  let options = arg2 || {};
+  if (typeof arg1 === "string") {
+    prefix = arg1 + ".";
+    defaults = arg2;
+    options = {};
+  }
   const store = new Map(Object.entries(defaults));
   const listeners = /* @__PURE__ */ new Set();
-  configs.push({ keys: Object.keys(defaults), store });
+  const validate = typeof options.validate === "function" ? options.validate : null;
+  if (typeof options.debounceMs === "number" && options.debounceMs > 0) {
+    maxDebounceMs = Math.max(maxDebounceMs, options.debounceMs);
+  }
+  configs.push({ keys: Object.keys(defaults), store, prefix, validate });
+  if (seeded && lastSaved) seedStore(configs[configs.length - 1], lastSaved);
   return {
     get(key) {
       return store.get(key);
     },
     set(key, value) {
       store.set(key, value);
+      if (!seeded) pending.add(prefix + key);
       schedulePersist();
       for (const listener of [...listeners]) listener(key, value);
     },
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    onReady(cb) {
+      if (seeded) {
+        cb();
+        return () => {
+        };
+      }
+      readyCallbacks.push(cb);
+      return () => {
+        const i = readyCallbacks.indexOf(cb);
+        if (i >= 0) readyCallbacks.splice(i, 1);
+      };
+    },
+    get ready() {
+      return seeded;
     }
   };
 }
+function snap(value) {
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map(snap);
+  if (!isPlain(value)) return value;
+  const out = {};
+  for (const key of Reflect.ownKeys(value)) out[key] = snap(value[key]);
+  return out;
+}
 function __omaBind(saved, fn) {
-  if (bound) return;
-  bound = true;
-  persistFn = fn;
-  const data = saved || {};
-  for (const c of configs) {
-    for (const key of c.keys) {
-      if (data[key] !== void 0 && data[key] !== null) c.store.set(key, data[key]);
-    }
+  sinks.push(fn);
+  sink = fn;
+  if (!seeded) {
+    seeded = true;
+    const data = saved || {};
+    lastSaved = data;
+    for (const c of configs) seedStore(c, data);
+    for (const cb of [...readyCallbacks]) cb();
   }
+  if (pending.size || dirty) {
+    schedulePersist();
+    pending.clear();
+    dirty = false;
+  }
+  return fn;
+}
+function __omaUnbind(handle) {
+  const i = sinks.indexOf(handle);
+  if (i >= 0) sinks.splice(i, 1);
+  if (sink === handle) sink = sinks.length ? sinks[sinks.length - 1] : null;
+}
+function __omaDebounceMs() {
+  return maxDebounceMs;
 }
 
-// examples/counter/src/index.js
+// src/index.js
 var counter = state({
   count: 0,
   step: 1
@@ -151,6 +222,9 @@ function setStep(v) {
 }
 export {
   __omaBind as __omaBindRef,
+  __omaDebounceMs as __omaDebounceMsRef,
+  snap as __omaSnap,
+  __omaUnbind as __omaUnbindRef,
   applySavedStep,
   counter,
   dec,

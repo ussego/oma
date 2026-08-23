@@ -96,19 +96,22 @@ cfg.set("volume", 50);
 assert.equal(cfg.get("volume"), 50);
 assert.equal(cfgKey, "volume");
 
-// __omaBind seeds saved values over defaults and enables write-through
+// __omaBind seeds saved values over defaults; a write made before the first
+// bind is a deliberate mutation: it wins over the disk seed and flushes.
 let persisted = null;
 __omaBind({ volume: 99 }, (data) => {
 	persisted = data;
 });
-assert.equal(cfg.get("volume"), 99); // loaded from storage over default 80
-assert.equal(persisted, null); // load alone does not write
+assert.equal(cfg.get("volume"), 50); // pre-bind write won over disk 99
+assert.equal(persisted.volume, 50); // buffered write flushed to the sink
 cfg.set("volume", 55);
 assert.deepEqual(persisted, { volume: 55 });
-// second bind is a no-op (bridge instances share one JS module)
-__omaBind({ volume: 1 }, () => {});
+// a later bind re-targets the sink (newest bridge wins) but does not re-seed
+__omaBind({ volume: 1 }, (data) => {
+	persisted = data;
+});
 assert.equal(cfg.get("volume"), 55);
-// multiple configs persist as one merged file (keys must be unique per plugin)
+// multiple configs persist as one merged file (namespaces end collisions)
 const cfg2 = config({ label: "x", quality: "best" }); // joins registry after bind
 cfg.set("volume", 60);
 assert.deepEqual(persisted, { volume: 60, label: "x", quality: "best" });

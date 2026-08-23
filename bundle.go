@@ -60,13 +60,14 @@ func bundleProject(dir string) error {
 	}
 	result := api.Build(api.BuildOptions{
 		// Entry is a generated wrapper, not the plugin file itself: it
-		// re-exports the plugin's exports plus __omaBindRef (the persistence
-		// bootstrap the generated bridge calls). A plain footer can't do this -
-		// tree-shaking runs before footers exist and would strip __omaBind,
+		// re-exports the plugin's exports plus the bridge bootstrap symbols
+		// (persistence bind/unbind, deep-clone snap, debounce interval) the
+		// generated bridge calls. A plain footer can't do this -
+		// tree-shaking runs before footers exist and would strip them,
 		// leaving a dangling reference that throws under QJSEngine.
 		Stdin: &api.StdinOptions{
 			Contents: fmt.Sprintf("export * from %q;\n"+
-				"export { __omaBind as __omaBindRef } from %q;\n",
+				"export { __omaBind as __omaBindRef, __omaUnbind as __omaUnbindRef, snap as __omaSnap, __omaDebounceMs as __omaDebounceMsRef } from %q;\n",
 				filepath.ToSlash(entry), filepath.ToSlash(runtime)),
 			Loader:     api.LoaderJS,
 			ResolveDir: abs,

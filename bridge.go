@@ -11,21 +11,30 @@ import (
 // become bridge methods. Plugin code is never evaluated, so builds stay fast,
 // deterministic and dependency-free.
 
-type FieldMeta struct{ Name, Type string }
+type FieldMeta struct{ Name, Type, Value string }
 
 type StateMeta struct {
 	Name   string
 	Fields []FieldMeta
 }
 
+// DerivedMeta bridges an opt-in derived() export into QML as a read-only
+// property (derived(fn, { bridge: "propName" })).
+type DerivedMeta struct {
+	Name string // export name
+	Prop string // QML property name
+}
+
 type ModuleMeta struct {
 	States    []StateMeta
+	Deriveds  []DerivedMeta
 	Functions []string
 }
 
 // scanResult carries notes surfaced to the developer during build.
 type scanNotes struct {
-	ignored []string // exports recognized but deliberately not bridged
+	ignored    []string // exports recognized but deliberately not bridged
+	usesConfig bool     // a config() export exists (persistence is active)
 }
 
 var qmlPropRe = regexp.MustCompile(`^[a-z_][A-Za-z0-9_$]*$`)
@@ -81,14 +90,60 @@ func scanBridge(src string) (ModuleMeta, scanNotes, error) {
 			}
 			expr, err := initializerExpr(tail[p2:])
 			if err != nil {
-				return meta, notes, fmt.Errorf("export %s (line %d): %w", name, line, err)
+				return meta, notes, fmt.Errorf("export %s (line %d): %w\n    %s", name, line, err, sourceLine(src, line))
 			}
 			if err := classifyInit(name, expr, &meta, &notes, seenState, seenFn); err != nil {
-				return meta, notes, fmt.Errorf("export %s (line %d): %w", name, line, err)
+				return meta, notes, fmt.Errorf("export %s (line %d): %w\n    %s", name, line, err, sourceLine(src, line))
 			}
 		}
 	}
+	if err := checkPropCollisions(meta); err != nil {
+		return meta, notes, err
+	}
 	return meta, notes, nil
+}
+
+// checkPropCollisions rejects duplicate bridge property names: a derived()
+// bridged under the same name as a state field (or another derived) would
+// generate two QML declarations with one id.
+func checkPropCollisions(meta ModuleMeta) error {
+	seen := map[string]string{}
+	for _, s := range meta.States {
+		for _, f := range s.Fields {
+			if owner, dup := seen[f.Name]; dup {
+				return fmt.Errorf("bridge property %q is declared twice (%s and state %s)", f.Name, owner, s.Name)
+			}
+			seen[f.Name] = "state " + s.Name
+		}
+	}
+	for _, d := range meta.Deriveds {
+		if owner, dup := seen[d.Prop]; dup {
+			return fmt.Errorf("bridge property %q is declared twice (%s and derived %s)", d.Prop, owner, d.Name)
+		}
+		seen[d.Prop] = "derived " + d.Name
+	}
+	return nil
+}
+
+// sourceLine returns the (1-based) line of src with surrounding whitespace
+// trimmed, for error messages. Offsets were neutralized by the scanner, so
+// the original src is used to show the code the developer wrote.
+func sourceLine(src string, line int) string {
+	start := 0
+	for i := 1; i < line; i++ {
+		j := strings.IndexByte(src[start:], '\n')
+		if j < 0 {
+			return ""
+		}
+		start += j + 1
+	}
+	end := strings.IndexByte(src[start:], '\n')
+	if end < 0 {
+		end = len(src)
+	} else {
+		end += start
+	}
+	return strings.TrimSpace(src[start:end])
 }
 
 // findExports returns offsets of top-level `export` keyword tokens.
@@ -150,9 +205,26 @@ func classifyInit(name, expr string, meta *ModuleMeta, notes *scanNotes, seenSta
 			meta.States = append(meta.States, StateMeta{Name: name, Fields: fields})
 		}
 	case "derived":
-		notes.ignored = append(notes.ignored, fmt.Sprintf("derived state %q is not bridged (only state({...}) exports become QML properties)", name))
+		if prop, ok := derivedBridgeProp(arg); ok {
+			// Guard against exporting the same name twice (dedup by export
+			// name, not prop: two deriveds may share one prop only if one of
+			// them is not exported - the scanner only sees exported names).
+			dup := false
+			for _, d := range meta.Deriveds {
+				if d.Name == name {
+					dup = true
+					break
+				}
+			}
+			if !dup {
+				meta.Deriveds = append(meta.Deriveds, DerivedMeta{Name: name, Prop: prop})
+			}
+			return nil
+		}
+		notes.ignored = append(notes.ignored, fmt.Sprintf("derived state %q is not bridged (only state({...}) exports become QML properties; pass { bridge: \"propName\" } to surface it)", name))
 	case "config":
-		// methods-only instance, nothing to bridge
+		// methods-only instance, nothing to bridge; flag for build-time notes
+		notes.usesConfig = true
 	default:
 		if isFunctionExpr(expr) {
 			if lowerIdentRe.MatchString(name) && !seenFn[name] {
@@ -203,6 +275,114 @@ func callHead(expr string) (head string, arg string, ok bool) {
 		return head, "", false
 	}
 	return head, expr[j+1 : end-1], true
+}
+
+// derivedBridgeProp extracts the `bridge: "propName"` option from the options
+// object of `derived(fn, { bridge: "propName" })`. The whole parenthesized
+// argument list arrives here (`fn, { ... }`), so the options object is the
+// last top-level comma-separated group. Angle brackets are deliberately not
+// counted: JS comparisons in the fn body (`a < b`) must not affect depth, and
+// generics with commas sit inside `( )`/`[ ]`/`{ }` groups that are counted.
+func derivedBridgeProp(arg string) (string, bool) {
+	// find the last top-level comma separating the fn from the options object
+	depth := 0
+	last := -1
+	for i := 0; i < len(arg); i++ {
+		c := arg[i]
+		if c == '\'' || c == '"' || c == '`' {
+			j := skipString(arg, i)
+			if j < 0 {
+				return "", false
+			}
+			i = j - 1
+			continue
+		}
+		switch c {
+		case '(', '[', '{':
+			depth++
+		case ')', ']', '}':
+			depth--
+		case ',':
+			if depth == 0 {
+				last = i
+			}
+		}
+	}
+	if last < 0 {
+		return "", false
+	}
+	opts := strings.TrimSpace(arg[last+1:])
+	if !strings.HasPrefix(opts, "{") {
+		return "", false
+	}
+	end := matchBracket(opts, 0, '{', '}')
+	if end < 0 {
+		return "", false
+	}
+	body := opts[1 : end-1]
+	// find the `bridge: "name"` key inside the options literal
+	i := 0
+	for i < len(body) {
+		for i < len(body) && (body[i] == ' ' || body[i] == '\t' || body[i] == '\n' || body[i] == '\r' || body[i] == ',') {
+			i++
+		}
+		if i >= len(body) {
+			break
+		}
+		k := i
+		for i < len(body) && isIdentByte(body[i]) {
+			i++
+		}
+		key := body[k:i]
+		for i < len(body) && (body[i] == ' ' || body[i] == '\t' || body[i] == '\n' || body[i] == '\r') {
+			i++
+		}
+		if i >= len(body) || body[i] != ':' {
+			return "", false
+		}
+		i++
+		for i < len(body) && (body[i] == ' ' || body[i] == '\t' || body[i] == '\n' || body[i] == '\r') {
+			i++
+		}
+		if key == "bridge" && i < len(body) && (body[i] == '\'' || body[i] == '"') {
+			j := skipString(body, i)
+			if j < 0 {
+				return "", false
+			}
+			prop := body[i+1 : j-1]
+			if qmlPropRe.MatchString(prop) {
+				return prop, true
+			}
+			return "", false
+		}
+		// skip this option's value to the next top-level comma
+		depth := 0
+		for i < len(body) {
+			c := body[i]
+			if c == '\'' || c == '"' || c == '`' {
+				j := skipString(body, i)
+				if j < 0 {
+					return "", false
+				}
+				i = j
+				continue
+			}
+			switch c {
+			case '(', '[', '{':
+				depth++
+			case ')', ']', '}':
+				depth--
+			case ',':
+				if depth == 0 {
+					goto next
+				}
+			}
+			i++
+		}
+	next:
+		i++
+	}
+	return "", false
 }
 
 // isFunctionExpr detects `function` declarations and arrow functions,
@@ -418,7 +598,7 @@ func parseFields(body, owner string) ([]FieldMeta, error) {
 			return nil, fmt.Errorf("duplicate field %q", key)
 		}
 		seen[key] = true
-		fields = append(fields, FieldMeta{Name: key, Type: typ})
+		fields = append(fields, FieldMeta{Name: key, Type: typ, Value: value})
 	}
 	if len(fields) == 0 {
 		return nil, fmt.Errorf("has no fields to bridge")
@@ -653,6 +833,11 @@ func stripAndMask(src string) (string, []bool) {
 				stack = append(stack, frame{mode: mTemplate})
 				i++
 			case c == '/' && i+1 < n && src[i+1] == '/':
+				// Blank the markers too: the comment body is blanked by the
+				// mLine case, and a stray `//` would otherwise be scanned as
+				// code (parseFields reports a bogus empty field).
+				out[i] = ' '
+				out[i+1] = ' '
 				stack = append(stack, frame{mode: mLine})
 				i += 2
 			case c == '/' && i+1 < n && src[i+1] == '*':
@@ -681,9 +866,11 @@ func stripAndMask(src string) (string, []bool) {
 }
 
 // renderBridge emits the generated bridge QtObject: one auto-NOTIFY property
-// per state field, one delegating method per action, a subscription loop that
-// pushes JS-side changes into the properties, and the persistence bootstrap
-// that feeds config() stores from the standard per-plugin settings file
+// per state field (deep-cloned through the runtime's snap so proxies never
+// leak across the QML boundary), one delegating method per action, read-only
+// properties per opt-in bridged derived, a subscription loop that pushes
+// JS-side changes into the properties, and the persistence bootstrap that
+// feeds config() stores from the standard per-plugin settings file
 // ~/.config/omarchy/<id>.json.
 func renderBridge(meta ModuleMeta, jsModule, pluginID string) string {
 	props := make([]string, 0, len(meta.States))
@@ -700,19 +887,34 @@ func renderBridge(meta ModuleMeta, jsModule, pluginID string) string {
 	for i, s := range meta.States {
 		assigns := make([]string, 0, len(s.Fields))
 		for _, f := range s.Fields {
-			assigns = append(assigns, fmt.Sprintf("        root.%s = Logic.%s.%s", f.Name, s.Name, f.Name))
+			assigns = append(assigns, fmt.Sprintf("        root.%s = Logic.__omaSnap(Logic.%s.%s)", f.Name, s.Name, f.Name))
 		}
 		sync = append(sync,
 			fmt.Sprintf("    var apply%d = function() {\n%s\n    }\n    apply%d()\n    unsubscribers.push(Logic.%s.subscribe(apply%d))",
 				i, strings.Join(assigns, "\n"), i, s.Name, i))
 	}
-	body := strings.Join(append([]string{"  property var unsubscribers: []"}, append(props, fns...)...), "\n")
+	derivedProps := make([]string, 0, len(meta.Deriveds))
+	derivedSync := make([]string, 0, len(meta.Deriveds))
+	for i, d := range meta.Deriveds {
+		derivedProps = append(derivedProps, fmt.Sprintf("  // read-only: driven by derived %q on the JS side", d.Name))
+		derivedProps = append(derivedProps, fmt.Sprintf("  property var %s", d.Prop))
+		derivedSync = append(derivedSync,
+			fmt.Sprintf("    var applyD%d = function() {\n        root.%s = Logic.__omaSnap(Logic.%s.value)\n    }\n    applyD%d()\n    unsubscribers.push(Logic.%s.subscribe(applyD%d))",
+				i, d.Prop, d.Name, i, d.Name, i))
+	}
+	body := strings.Join(append([]string{"  property var unsubscribers: []"}, append(append(props, derivedProps...), fns...)...), "\n")
 
 	persistence := strings.Join([]string{
 		"  // Persistence: config() stores survive restarts via ~/.config/omarchy/" + pluginID + ".json.",
+		"  // The runtime re-targets its write channel on every bind and buffers",
+		"  // writes while no bridge is alive, so surface churn (panel hide/show,",
+		"  // registry rescans) cannot lose data. `omaReady` flips once seeding",
+		"  // completed; reads before that see defaults, writes before it are",
+		"  // buffered and win over the disk seed.",
 		"  readonly property string omaHome: Quickshell.env(\"HOME\")",
-		"  property bool omaBound: false",
+		"  property bool omaReady: false",
 		"  property var omaData: null",
+		"  property var omaSink: null",
 		"",
 		"  function __omaPersist(data) {",
 		"    root.omaData = data",
@@ -720,14 +922,15 @@ func renderBridge(meta ModuleMeta, jsModule, pluginID string) string {
 		"  }",
 		"",
 		"  function __omaLoad(raw) {",
-		"    if (root.omaBound) return",
+		"    if (root.omaReady) return",
 		"    var saved = {}",
 		"    try { saved = JSON.parse(String(raw || \"{}\")) } catch (e) {}",
-		// Bind BEFORE raising omaBound: property-change handlers run
+		// Bind BEFORE raising omaReady: property-change handlers run
 		// synchronously, so flipping the flag first would let consumers read
-		// half-seeded stores.
-		"    Logic.__omaBindRef(saved, root.__omaPersist)",
-		"    root.omaBound = true",
+		// half-seeded stores. The returned handle lets this instance release
+		// the write channel on destruction without killing a sibling surface's.
+		"    root.omaSink = Logic.__omaBindRef(saved, root.__omaPersist)",
+		"    root.omaReady = true",
 		"  }",
 		"",
 		// Held as properties, not child objects: QtObject has no default
@@ -742,9 +945,10 @@ func renderBridge(meta ModuleMeta, jsModule, pluginID string) string {
 		"  }",
 		"",
 		"  // Debounced like other omarchy plugins; a slider dragging across set()",
-		"  // calls would otherwise hit the disk on every tick.",
+		"  // calls would otherwise hit the disk on every tick. The runtime exposes",
+		"  // the interval so config({ debounceMs }) can override it.",
 		"  property Timer omaSaveTimer: Timer {",
-		"    interval: 200",
+		"    interval: Logic.__omaDebounceMsRef()",
 		"    onTriggered: omaSettingsFile.setText(JSON.stringify(root.omaData, null, 2) + \"\\n\")",
 		"  }",
 	}, "\n")
@@ -763,11 +967,18 @@ func renderBridge(meta ModuleMeta, jsModule, pluginID string) string {
 		persistence,
 		"",
 		"  Component.onCompleted: {",
-		strings.Join(sync, "\n"),
+		strings.Join(append(sync, derivedSync...), "\n"),
 		"  }",
 		"",
 		"  Component.onDestruction: {",
 		"    for (var i = 0; i < unsubscribers.length; i++) unsubscribers[i]()",
+		// Best-effort flush: the debounce may still be pending when the
+		// surface is torn down (panel hide, registry rescan). Write
+		// synchronously so the IO thread gets the latest snapshot; writes
+		// after this point are buffered by the runtime until the next bind.
+		"    if (root.omaData !== null && omaSaveTimer.running)",
+		"      omaSettingsFile.setText(JSON.stringify(root.omaData, null, 2) + \"\\n\")",
+		"    Logic.__omaUnbindRef(root.omaSink)",
 		"  }",
 		"}",
 	}, "\n")

@@ -80,9 +80,11 @@ func TestBuildEndToEnd(t *testing.T) {
 		"property double volume",
 		"function toggle() { return Logic.toggle.apply(null, arguments) }",
 		"function setVolume() { return Logic.setVolume.apply(null, arguments) }",
-		"root.playing = Logic.music.playing",
+		"root.playing = Logic.__omaSnap(Logic.music.playing)",
 		"Logic.music.subscribe(apply0)",
 		"Logic.__omaBindRef(saved, root.__omaPersist)",
+		"Logic.__omaUnbindRef(root.omaSink)",
+		"Logic.__omaDebounceMsRef()",
 		".config/omarchy/tester.mybuild.json",
 	} {
 		if !strings.Contains(qs, want) {

@@ -16,9 +16,15 @@ QtObject {
   function clearDone() { return Logic.clearDone.apply(null, arguments) }
 
   // Persistence: config() stores survive restarts via ~/.config/omarchy/examples.todo.json.
+  // The runtime re-targets its write channel on every bind and buffers
+  // writes while no bridge is alive, so surface churn (panel hide/show,
+  // registry rescans) cannot lose data. `omaReady` flips once seeding
+  // completed; reads before that see defaults, writes before it are
+  // buffered and win over the disk seed.
   readonly property string omaHome: Quickshell.env("HOME")
-  property bool omaBound: false
+  property bool omaReady: false
   property var omaData: null
+  property var omaSink: null
 
   function __omaPersist(data) {
     root.omaData = data
@@ -26,11 +32,11 @@ QtObject {
   }
 
   function __omaLoad(raw) {
-    if (root.omaBound) return
+    if (root.omaReady) return
     var saved = {}
     try { saved = JSON.parse(String(raw || "{}")) } catch (e) {}
-    Logic.__omaBindRef(saved, root.__omaPersist)
-    root.omaBound = true
+    root.omaSink = Logic.__omaBindRef(saved, root.__omaPersist)
+    root.omaReady = true
   }
 
   property FileView omaSettingsFile: FileView {
@@ -43,16 +49,17 @@ QtObject {
   }
 
   // Debounced like other omarchy plugins; a slider dragging across set()
-  // calls would otherwise hit the disk on every tick.
+  // calls would otherwise hit the disk on every tick. The runtime exposes
+  // the interval so config({ debounceMs }) can override it.
   property Timer omaSaveTimer: Timer {
-    interval: 200
+    interval: Logic.__omaDebounceMsRef()
     onTriggered: omaSettingsFile.setText(JSON.stringify(root.omaData, null, 2) + "\n")
   }
 
   Component.onCompleted: {
     var apply0 = function() {
-        root.open = Logic.todos.open
-        root.done = Logic.todos.done
+        root.open = Logic.__omaSnap(Logic.todos.open)
+        root.done = Logic.__omaSnap(Logic.todos.done)
     }
     apply0()
     unsubscribers.push(Logic.todos.subscribe(apply0))
@@ -60,5 +67,8 @@ QtObject {
 
   Component.onDestruction: {
     for (var i = 0; i < unsubscribers.length; i++) unsubscribers[i]()
+    if (root.omaData !== null && omaSaveTimer.running)
+      omaSettingsFile.setText(JSON.stringify(root.omaData, null, 2) + "\n")
+    Logic.__omaUnbindRef(root.omaSink)
   }
 }

@@ -146,6 +146,14 @@ func generateBridge(dir string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("bridge scan: %w", err)
 	}
+	if notes.usesConfig && !contains(m.Kinds, "bar") && !contains(m.Kinds, "bar-widget") {
+		// Panels/overlays/menus are torn down when hidden unless keepLoaded;
+		// config() survives that (writes buffer and re-target), but QML-local
+		// variables on the surface reset per summon.
+		if !m.KeepLoaded {
+			fmt.Fprintln(os.Stderr, "oma: config() is active and this plugin has no keepLoaded: true in manifest.json - state survives panel reloads, but QML-local variables reset on every summon")
+		}
+	}
 	if err := os.MkdirAll(filepath.Join(dir, "ui"), 0o755); err != nil {
 		return "", err
 	}

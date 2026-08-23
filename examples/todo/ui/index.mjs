@@ -1,4 +1,4 @@
-// ../../.cache/oma/oma.js
+// ../../../../.cache/oma/oma.js
 var active = null;
 var Cell = class {
   /**
@@ -83,21 +83,71 @@ function objectProxy(cell, target) {
   return wrap(target, true);
 }
 var configs = [];
-var persistFn = null;
-var bound = false;
-function __omaBind(saved, fn) {
-  if (bound) return;
-  bound = true;
-  persistFn = fn;
-  const data = saved || {};
+var readyCallbacks = [];
+var seeded = false;
+var lastSaved = null;
+var sink = null;
+var sinks = [];
+var pending = /* @__PURE__ */ new Set();
+var dirty = false;
+var maxDebounceMs = 200;
+function schedulePersist() {
+  if (!sink) {
+    dirty = true;
+    return;
+  }
+  dirty = false;
+  const merged = {};
   for (const c of configs) {
-    for (const key of c.keys) {
-      if (data[key] !== void 0 && data[key] !== null) c.store.set(key, data[key]);
-    }
+    for (const [key, value] of c.store) merged[c.prefix + key] = value;
+  }
+  sink(merged);
+}
+function seedStore(c, data) {
+  for (const key of c.keys) {
+    const k = c.prefix + key;
+    if (pending.has(k)) continue;
+    let raw = data[k];
+    if (raw === void 0 || raw === null) continue;
+    if (c.validate) raw = c.validate(key, raw);
+    if (raw !== void 0 && raw !== null) c.store.set(key, raw);
   }
 }
+function snap(value) {
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map(snap);
+  if (!isPlain(value)) return value;
+  const out = {};
+  for (const key of Reflect.ownKeys(value)) out[key] = snap(value[key]);
+  return out;
+}
+function __omaBind(saved, fn) {
+  sinks.push(fn);
+  sink = fn;
+  if (!seeded) {
+    seeded = true;
+    const data = saved || {};
+    lastSaved = data;
+    for (const c of configs) seedStore(c, data);
+    for (const cb of [...readyCallbacks]) cb();
+  }
+  if (pending.size || dirty) {
+    schedulePersist();
+    pending.clear();
+    dirty = false;
+  }
+  return fn;
+}
+function __omaUnbind(handle) {
+  const i = sinks.indexOf(handle);
+  if (i >= 0) sinks.splice(i, 1);
+  if (sink === handle) sink = sinks.length ? sinks[sinks.length - 1] : null;
+}
+function __omaDebounceMs() {
+  return maxDebounceMs;
+}
 
-// examples/todo/src/index.js
+// src/index.js
 var todos = state({
   open: "",
   done: ""
@@ -129,6 +179,9 @@ function clearDone() {
 }
 export {
   __omaBind as __omaBindRef,
+  __omaDebounceMs as __omaDebounceMsRef,
+  snap as __omaSnap,
+  __omaUnbind as __omaUnbindRef,
   add,
   clearDone,
   complete,

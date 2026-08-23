@@ -30,7 +30,7 @@ export function toggle() {
 	if len(meta.States) != 1 || meta.States[0].Name != "music" {
 		t.Fatalf("states = %+v", meta.States)
 	}
-	want := []FieldMeta{{"playing", "bool"}, {"song", "string"}, {"volume", "double"}}
+	want := []FieldMeta{{"playing", "bool", "false"}, {"song", "string", `""`}, {"volume", "double", "100"}}
 	f := meta.States[0].Fields
 	if len(f) != 3 {
 		t.Fatalf("fields = %+v", f)
@@ -125,6 +125,108 @@ export function act() {}
 	}
 }
 
+// Comments INSIDE a state({...}) literal must scan cleanly: the comment
+// markers themselves used to survive stripping, so parseFields saw a stray
+// `/` as a field start and reported a bogus "shorthand fields" error.
+func TestScanCommentsInsideStateLiteral(t *testing.T) {
+	meta, err := scan(t, `export const todo = state({
+  // leading comment
+  items: [], // trailing comment on the field
+  /* block comment */ done: false,
+});
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(meta.States) != 1 || meta.States[0].Name != "todo" {
+		t.Fatalf("states = %+v", meta.States)
+	}
+	fields := meta.States[0].Fields
+	if len(fields) != 2 || fields[0].Name != "items" || fields[1].Name != "done" {
+		t.Fatalf("fields = %+v", fields)
+	}
+	if fields[0].Type != "var" || fields[1].Type != "bool" {
+		t.Fatalf("types = %+v", fields)
+	}
+}
+
+// stripAndMask must blank line-comment markers too (the body was blanked,
+// the `//` itself used to survive and was scanned as code).
+func TestStripBlanksCommentMarkers(t *testing.T) {
+	src := "const a = 1; // hi\nexport const b = 2; /* x */\n"
+	out, _ := stripAndMask(src)
+	if strings.Contains(out, "//") {
+		t.Fatalf("line comment marker survived:\n%q", out)
+	}
+	if strings.Contains(out, "/*") || strings.Contains(out, "*/") {
+		t.Fatalf("block comment marker survived:\n%q", out)
+	}
+}
+
+// derived(fn, { bridge: "prop" }) surfaces the value as a read-only QML
+// property; plain derived() keeps the skip note.
+func TestScanDerivedBridgeOption(t *testing.T) {
+	meta, notes, err := scanBridge(`export const count = derived(() => 1, { bridge: "openCount" });
+export const plain = derived(() => 2);
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(meta.Deriveds) != 1 || meta.Deriveds[0].Name != "count" || meta.Deriveds[0].Prop != "openCount" {
+		t.Fatalf("deriveds = %+v", meta.Deriveds)
+	}
+	if len(notes.ignored) != 1 || !strings.Contains(notes.ignored[0], "plain") {
+		t.Fatalf("ignored notes = %+v", notes.ignored)
+	}
+	qml := renderBridge(meta, "index.mjs", "usse.x")
+	for _, want := range []string{
+		"property var openCount",
+		"root.openCount = Logic.__omaSnap(Logic.count.value)",
+		"unsubscribers.push(Logic.count.subscribe(applyD0))",
+	} {
+		if !strings.Contains(qml, want) {
+			t.Errorf("missing %q in:\n%s", want, qml)
+		}
+	}
+}
+
+// A bridged derived colliding with a state field name would generate two QML
+// declarations with one id - reject it at scan time.
+func TestScanDerivedPropCollision(t *testing.T) {
+	_, _, err := scanBridge(`export const s = state({ open: 0 });
+export const d = derived(() => 1, { bridge: "open" });
+`)
+	if err == nil || !strings.Contains(err.Error(), `bridge property "open" is declared twice`) {
+		t.Fatalf("expected collision error, got %v", err)
+	}
+}
+
+// Scan errors show the offending source line so a bogus message is
+// debuggable at a glance.
+func TestScanErrorShowsSourceLine(t *testing.T) {
+	_, _, err := scanBridge("export const a = state({ x: 1 });\nexport const bad = state([1]);\n")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "export const bad = state([1]);") {
+		t.Fatalf("error missing source line: %v", err)
+	}
+}
+
+// config() exports flag usesConfig for build-time notes.
+func TestScanConfigFlagsUsesConfig(t *testing.T) {
+	_, notes, err := scanBridge(`export const settings = config({ volume: 80 });
+export const ns = config("ui", { shown: true });
+export const opts = config({ v: 1 }, { validate: () => 1, debounceMs: 500 });
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !notes.usesConfig {
+		t.Fatal("usesConfig not set")
+	}
+}
+
 func TestScanMultipleExportsOneLine(t *testing.T) {
 	meta, err := scan(t, `import { state } from "@oma/runtime"; export const a = state({ x: 1 }); export const b = state({ y: "z" }); export function f() {}`)
 	if err != nil {
@@ -140,7 +242,7 @@ func TestScanMultipleExportsOneLine(t *testing.T) {
 
 func TestRenderBridgeShape(t *testing.T) {
 	meta := ModuleMeta{
-		States:    []StateMeta{{Name: "music", Fields: []FieldMeta{{"playing", "bool"}}}},
+		States:    []StateMeta{{Name: "music", Fields: []FieldMeta{{"playing", "bool", "false"}}}},
 		Functions: []string{"toggle"},
 	}
 	qml := renderBridge(meta, "index.mjs", "usse.boe")
@@ -149,13 +251,16 @@ func TestRenderBridgeShape(t *testing.T) {
 		"import Quickshell.Io",
 		"property bool playing",
 		"function toggle() { return Logic.toggle.apply(null, arguments) }",
-		"root.playing = Logic.music.playing",
+		"root.playing = Logic.__omaSnap(Logic.music.playing)",
 		"unsubscribers.push(Logic.music.subscribe(apply0))",
 		"Component.onDestruction",
 		"FileView {",
 		".config/omarchy/usse.boe.json",
 		"atomicWrites: true",
 		"Logic.__omaBindRef(saved, root.__omaPersist)",
+		"Logic.__omaUnbindRef(root.omaSink)",
+		"property bool omaReady: false",
+		"interval: Logic.__omaDebounceMsRef()",
 		"onLoaded: root.__omaLoad(text())",
 	} {
 		if !strings.Contains(qml, want) {
@@ -312,8 +417,8 @@ func TestScanLetAndTemplateFields(t *testing.T) {
 func TestRenderBridgeMultiState(t *testing.T) {
 	meta := ModuleMeta{
 		States: []StateMeta{
-			{Name: "music", Fields: []FieldMeta{{"playing", "bool"}, {"song", "string"}}},
-			{Name: "todos", Fields: []FieldMeta{{"open", "string"}}},
+			{Name: "music", Fields: []FieldMeta{{"playing", "bool", "false"}, {"song", "string", `""`}}},
+			{Name: "todos", Fields: []FieldMeta{{"open", "string", `""`}}},
 		},
 		Functions: []string{"toggle", "add"},
 	}
@@ -327,9 +432,9 @@ func TestRenderBridgeMultiState(t *testing.T) {
 		"function add() { return Logic.add.apply(null, arguments) }",
 		"var apply0 = function()",
 		"var apply1 = function()",
-		"root.playing = Logic.music.playing",
-		"root.song = Logic.music.song",
-		"root.open = Logic.todos.open",
+		"root.playing = Logic.__omaSnap(Logic.music.playing)",
+		"root.song = Logic.__omaSnap(Logic.music.song)",
+		"root.open = Logic.__omaSnap(Logic.todos.open)",
 		"unsubscribers.push(Logic.music.subscribe(apply0))",
 		"unsubscribers.push(Logic.todos.subscribe(apply1))",
 		"for (var i = 0; i < unsubscribers.length; i++) unsubscribers[i]()",
