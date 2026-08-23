@@ -3,49 +3,7 @@
 SDK and CLI for building [Omarchy](https://omarchy.org) shell plugins — one
 project, shared logic, multiple surfaces.
 
-<p align="center">
-  <a href="https://github.com/ussego/oma/releases/latest">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/github/release/ussego/oma.svg?variant=secondary&mode=dark" />
-      <img alt="Latest release" src="https://shieldcn.dev/github/release/ussego/oma.svg?variant=secondary&mode=light" />
-    </picture>
-  </a>
-
-  <a href="https://github.com/ussego/oma">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/github/stars/ussego/oma.svg?variant=secondary&mode=dark" />
-      <img alt="GitHub stars" src="https://shieldcn.dev/github/stars/ussego/oma.svg?variant=secondary&mode=light" />
-    </picture>
-  </a>
-
-  <a href="https://github.com/ussego/oma/blob/main/LICENSE">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/github/license/ussego/oma.svg?variant=secondary&mode=dark" />
-      <img alt="License" src="https://shieldcn.dev/github/license/ussego/oma.svg?variant=secondary&mode=light" />
-    </picture>
-  </a>
-
-  <a href="https://jsr.io/@oma/runtime">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/jsr/@oma/runtime.svg?variant=secondary&mode=dark" />
-      <img alt="JSR @oma/runtime" src="https://shieldcn.dev/jsr/@oma/runtime.svg?variant=secondary&mode=light" />
-    </picture>
-  </a>
-
-  <a href="https://go.dev">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/go-1.27-00ADD8.svg?variant=secondary&logo=go&mode=dark" />
-      <img alt="Go 1.27" src="https://shieldcn.dev/badge/go-1.27-00ADD8.svg?variant=secondary&logo=go&mode=light" />
-    </picture>
-  </a>
-
-  <a href="https://omarchy.org">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/for-omarchy-0891b2.svg?variant=secondary&mode=dark" />
-      <img alt="Built for Omarchy" src="https://shieldcn.dev/badge/for-omarchy-0891b2.svg?variant=secondary&mode=light" />
-    </picture>
-  </a>
-</p>
+[![Latest release](https://shieldcn.dev/github/release/ussego/oma.svg?variant=secondary)](https://github.com/ussego/oma/releases/latest) [![GitHub stars](https://shieldcn.dev/github/stars/ussego/oma.svg?variant=secondary)](https://github.com/ussego/oma) [![License](https://shieldcn.dev/github/license/ussego/oma.svg?variant=secondary)](https://github.com/ussego/oma/blob/main/LICENSE) [![JSR @oma/runtime](https://shieldcn.dev/jsr/@oma/runtime.svg?variant=secondary)](https://jsr.io/@oma/runtime) [![Go 1.27](https://shieldcn.dev/badge/go-1.27-00ADD8.svg?variant=secondary&logo=go)](https://go.dev) [![Built for Omarchy](https://shieldcn.dev/badge/for-omarchy-0891b2.svg?variant=secondary)](https://omarchy.org)
 
 Plain JavaScript (TypeScript annotations accepted, stripped at build) is the
 logic layer; QML is the UI. Reactive state declared in JS becomes live QML
