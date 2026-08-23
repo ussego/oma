@@ -61,6 +61,13 @@ curl -fsSL https://raw.githubusercontent.com/ussego/oma/main/install.sh | bash
 
 # Go
 go install github.com/ussego/oma/cli@latest
+
+# Arch Linux (AUR account registration is currently closed - build from the
+# hosted PKGBUILD instead; it downloads the release tarball and verifies
+# checksums, no AUR involvement):
+mkdir -p /tmp/oma-bin && cd /tmp/oma-bin
+curl -fsSL -O https://raw.githubusercontent.com/ussego/oma/main/packaging/aur/PKGBUILD
+makepkg -si
 ```
 
 ## Quickstart

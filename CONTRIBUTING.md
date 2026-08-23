@@ -124,6 +124,9 @@ Open a PR against `main`. The checklist:
    settings (one-time).
 3. After the workflow finishes: fill the
    `REPLACE_WITH_sha256sums.txt_VALUE` placeholders in
-   `packaging/aur/PKGBUILD` with the release's `sha256sums.txt` values and
-   push the AUR package.
+   `packaging/aur/PKGBUILD` with the release's `sha256sums.txt` values. AUR
+   account registration is currently closed; Arch users build from the hosted
+   PKGBUILD instead (`curl .../packaging/aur/PKGBUILD && makepkg -si` - see
+   the README install section), and the package is submitted to AUR as
+   `oma-bin` when registration reopens.
 4. Run the tier-2 live gate (`mise run live-shell`) before tagging.

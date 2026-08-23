@@ -8,7 +8,7 @@ permissions:
     contents: write
 
 jobs:
-    release:
+    build:
         runs-on: ubuntu-latest
         strategy:
             matrix:
@@ -37,6 +37,25 @@ jobs:
                   cp "cli/oma-${GITHUB_REF_NAME}-linux-${{ matrix.arch }}" "dist/${DIR}/oma"
                   cp README.md "dist/${DIR}/" 2>/dev/null || true
                   tar -czf "dist/${DIR}.tar.gz" -C dist "${DIR}"
+
+            - name: Upload artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: tarball-${{ matrix.arch }}
+                  path: dist/*.tar.gz
+                  if-no-files-found: error
+
+    # Checksums must cover BOTH tarballs in one file: running sha256sum per
+    # matrix job made each arch publish its own one-line file (last write
+    # won), which broke install.sh's verification for the other arch.
+    release:
+        needs: build
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/download-artifact@v4
+              with:
+                  path: dist
+                  merge-multiple: true
 
             - name: Checksums
               run: |

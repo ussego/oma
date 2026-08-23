@@ -12,8 +12,8 @@ provides=(oma)
 conflicts=(oma)
 source_x86_64=("${url}/releases/download/v${pkgver}/oma-v${pkgver}-linux-amd64.tar.gz")
 source_aarch64=("${url}/releases/download/v${pkgver}/oma-v${pkgver}-linux-arm64.tar.gz")
-sha256sums_x86_64=("REPLACE_WITH_sha256sums.txt_VALUE")
-sha256sums_aarch64=("REPLACE_WITH_sha256sums.txt_VALUE")
+sha256sums_x86_64=("8d09a5e0a65bee0b27be13f97cd52e8e3e68d63030bf528ca1c13ff859b49f75")
+sha256sums_aarch64=("c1e852e3357b56ebe6af94982f6721383f773ea63fdac95c1d0f7b6169e9db83")
 
 package() {
 	install -Dm0755 "oma-v${pkgver}-linux-${CARCH}/oma" "${pkgdir}/usr/bin/oma"
