@@ -42,6 +42,25 @@ if the property exists on your root:
 | `barWidgetRegistry` / `pluginRegistry` | live registries |
 | `service` | matching service singleton, if one was loaded |
 
+## Surface lifecycle: churn
+
+A panel/overlay/menu Loader stays active only while the surface is open
+(`keepLoaded: true` keeps it mounted after first summon). Hiding the surface
+**destroys** the QML instance — the bridge QtObject and every QML-local
+variable with it — while the plugin's JS module survives in the engine
+(module instances are cached per URL).
+
+Consequences for plugin authors:
+
+- The JS module (state, config, services) is the only durable home for shared
+  state. Never cache QObject references across instances.
+- The generated bridge handles this: it re-targets its persistence channel on
+  every mount, so `config()` data survives churn. QML-local variables reset
+  per summon — hydrate them from bridged state in `Component.onCompleted`.
+- `oma build` prints a note when `config()` is used without `keepLoaded`;
+  that is informational, not an error (destroy-on-hide is the right default
+  for most panels).
+
 Bar widgets extend `qs.Ui.BarWidget`, which declares the injected trio:
 `bar` (host bar), `moduleName` (must equal the manifest id — it keys settings
 lookup and inline IPC routing), and `settings` (the layout entry's extra keys).
@@ -73,6 +92,22 @@ Semantics worth knowing:
   inside must call `shell.hide(pluginId)` so the shell's state stays in sync.
 - `call(id, method, arg)` invokes an arbitrary function on a loaded surface —
   this is how launcher entries with custom actions work.
+
+`call` sharp edges (all verified against the shipped shell):
+
+- **Arity is strict.** `call(id, method, arg)` takes exactly three strings;
+  `omarchy-shell shell call <id> <method>` fails with "Too few arguments
+  provided". The wrapper script only auto-fills `"{}"` for `summon`/`toggle` —
+  for `call` you must pass the filler yourself: `shell call <id> clearDone '{}'`.
+  (`oma ipc` does this automatically.)
+- **`"unknown"` conflates two failures.** The shell returns `"unknown"` both
+  when the surface is not loaded (hidden panels are destroyed — see above)
+  and when the method does not exist. Distinguish by loading the surface
+  (`summon`), or diff against a known method; `oma ipc` checks the installed
+  entry points locally.
+- **Args are raw strings.** `"$@"` passes through verbatim — there is no JSON
+  decoding. A quoted test string arrives containing the literal quote
+  characters; pass already-encoded JSON and decode in the action.
 
 ## Settings persistence convention
 

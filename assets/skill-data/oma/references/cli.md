@@ -7,9 +7,10 @@ as a library — one static binary, no external toolchain required. The primary 
 
 | Command | What it does |
 |---|---|
-| `oma create <name> [flags]` | scaffold a project; flags `-s kinds`, `-a author`, `-d desc`, `-v ver`, `--panel-mode attached|window|both` (both `--flag val` and `--flag=val`; version is flag-only) |
+| `oma create <name> [flags]` | scaffold a project; flags `-s kinds`, `-a author`, `-d desc`, `-v ver`, `--panel-mode attached|window|both`, `-t todo|counter|settings-panel` (both `--flag val` and `--flag=val`; version is flag-only) |
 | `oma surface add [kinds...]` | add surfaces to an existing project (run in the project dir; idempotent, multi-select TUI with no args; `--panel-mode` switches an existing panel's presentation) |
-| `oma status [dir]` | read-only project state: entry points, build/install freshness, launcher entries, tools |
+| `oma status [dir]` | read-only project state: entry points, build/install freshness, launcher entries, settings-file age, recent bridge errors in the shell log, tools |
+| `oma ipc [pluginId] <verb> [args...]` | shell + surface IPC: `summon`/`toggle`/`hide`/`ping` route to the shell, anything else (or `call`) targets a surface action. Inside a project the id comes from `manifest.json` (`-p <id>` overrides; outside a project the first positional is the id). Auto-fills the call arg slot, `--json` for JSON args, resolves the ambiguous `"unknown"` locally |
 | `oma build [dir]` | bundle `src/index.js` or `.ts` → `ui/index.mjs` + generate `ui/<Name>.qml` |
 | `oma package [dir]` | build, then assemble `pkg/` (manifest.json + ui/) and `omarchy plugin validate` |
 | `oma validate [dir]` | `omarchy plugin validate` |
@@ -18,6 +19,7 @@ as a library — one static binary, no external toolchain required. The primary 
 | `oma launcher add [name] [--action a] [--exec cmd] [--icon i] [--comment c] [--terminal]` | upsert an entry into oma.json launchers[] (wizard when no name) and write the .desktop file |
 | `oma launcher remove [names...] \| --all` | drop entries from oma.json launchers[] (multi-select wizard when unnamed) and delete their oma-managed .desktop files |
 | `oma restart [dir]` (`r`) | install + `omarchy restart shell` |
+| `oma dev [dir]` | watch `src/`, `ui/`, `manifest.json`, `oma.json` and rebuild: build → install → shell restart on every edit (Ctrl-C stops) |
 | `oma log [flags]` | show shell-log lines filtered to this plugin (run in the project dir; `-f` follows, `--json` for agents, `--all` for everything, `--level warn` for errors only). Follow mode collapses identical lines arriving within a second into a live `(×N)` count; one-shot output is lossless |
 | `oma tail [flags]` | follow the shell log (alias for `oma log -f`) |
 | `oma skills list` | list skills: `name<TAB>description` |
@@ -86,6 +88,19 @@ assembles `pkg/` with `manifest.json` + `ui/` and validates it with
 
 After writing, each file is logged with a checkmark and a total count.
 
+### Templates (`-t`)
+
+`oma create <name> -s panel --panel-mode window -t <template>` overwrites the
+skeletons with a complete, working example (build + install as-is, then edit):
+
+- `todo` — persistent todo list: `config()`-backed items, `onReady` hydration,
+  ListView over the bridged array, IPC pass-throughs and a `snapshot()` action.
+- `counter` — the minimal persisted counter; shows the `onReady` mirror pattern.
+- `settings-panel` — ToggleSwitch + NumberField bound to config-backed state.
+
+Templates substitute the plugin id and bridge name automatically; they are the
+canonical reference for the guarded-persistence pattern.
+
 ## Bar-widget moduleName
 
 The bar-widget skeleton sets `moduleName: <manifest id>`. That field belongs to
@@ -149,9 +164,13 @@ Behavior:
 
 ## Hot reload caveat
 
-The shell's per-plugin hot reload re-bundles bar widgets and services, but an
-**open panel keeps its mounted QML instance** — after editing surface QML,
-close/hide the panel (or restart the shell) to see changes.
+The shell's per-plugin hot reload re-bundles bar widgets and services, but
+**panel/overlay/menu surfaces are destroyed when hidden** (the Loader
+deactivates unless `keepLoaded: true`), and a re-summon re-instantiates from
+whatever QML is on disk at that moment. Editing surface QML and hiding the
+panel is therefore **not** a dependable refresh — the shell may serve the old
+files until the registry rescans. For panel surfaces, `oma restart` (or
+`oma dev`) is the dependable loop; hiding is insufficient.
 
 ## Skills data
 

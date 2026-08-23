@@ -526,19 +526,23 @@ oma
 Expected commands:
 
 ```bash
-oma create <name>   # flags: -s kinds, -a author, -d desc, -v version, --panel-mode
+oma create <name>   # flags: -s kinds, -a author, -d desc, -v version, --panel-mode, -t template
 oma surface add     # add surfaces to an existing project
-oma status          # one-shot project state: build freshness, install, launcher
+oma status          # one-shot project state: build freshness, install, launcher, settings age, log health
 oma build
 oma package
 oma install         # also enables the plugin + materializes oma.json launcher entries
 oma launcher        # add (wizard/upsert into oma.json) or remove entries
+oma ipc             # shell + surface IPC: summon/toggle/hide/ping/call (id from manifest)
+oma dev             # watch -> build -> install -> shell restart
 ```
 
 `oma create` should be able to scaffold multiple surfaces in a single project.
 All inputs can be passed directly (bun-style flags, `--flag val` or `--flag=val`);
 anything missing is prompted for in the wizard. Version is flag-only — it is
-never prompted and defaults to `0.1.0`.
+never prompted and defaults to `0.1.0`. `-t todo|counter|settings-panel`
+scaffolds a complete working example instead of skeletons (full `src/index.js`
++ `ui/Panel.qml`, placeholders substituted).
 
 Panel presentation is chosen with `--panel-mode attached|window|both`
 (default `attached`) on both `oma create` and `oma surface add`:
@@ -655,10 +659,13 @@ The CLI ships as one static binary (pure Go, CGO off, assets embedded) for
 
 # Development Mode
 
-`oma dev` is deliberately **not implemented**. Omarchy already hot-reloads a single plugin when files under
-`~/.config/omarchy/plugins/<id>/` change (the shell runs `inotifywait` and reloads only that plugin, not the whole
-shell). When fast iteration is needed, `oma install` plus the shell's per-plugin hot-reload covers it. Reconsider a
-watch+rebuild loop only if that workflow proves insufficient.
+`oma dev [dir]` watches the project (src/, ui/, manifest.json, oma.json) and
+runs build → install → shell restart on every edit (polling, no deps; Ctrl-C
+stops). A hidden panel's surface is destroyed, not merely hidden, so the
+shell's per-plugin hot reload cannot reliably pick up surface changes — a full
+shell restart is the only dependable refresh, and `oma dev` automates exactly
+that (`oma restart` composes install+restart; `dev` is the watch loop around
+it). Reconsider the loop only if it proves insufficient.
 
 ---
 
@@ -806,6 +813,22 @@ Important areas include:
 
 Do not write tests that merely assert implementation details.
 
+## Runtime unit tests (no shell needed)
+
+The runtime (`assets/oma.js`, mirrored to `jsr/oma.js`) is pure ESM — its
+contract (state, derived, config persistence, snap, IPC) is testable in any
+modern JS engine:
+
+```sh
+node --test         # discovers assets/oma.test.js + jsr/oma.test.mjs
+node assets/oma.test.js   # single-flow script, same coverage
+```
+
+The persistence contract tests (buffered pre-bind writes, sink re-targeting,
+unbind/flush, validate, namespaces, debounce) run here and must pass before
+any live tier is worth running. Keep `assets/oma.js` and `jsr/oma.js`
+identical (the CLI embeds the former; JSR publishes the latter).
+
 ## Live verification
 
 Hermetic tests cannot catch QJSEngine-only breakage. `live_test.go`
@@ -818,13 +841,15 @@ OMA_LIVE_TEST=1 go test -tags live -run LiveShell # tier 2: restarts the shell
 
 Tier 1 boots Quickshell offscreen on a generated fixture and asserts the
 persistence round-trip (seeded read + debounced write) with zero session
-impact — run it after any change to the runtime, bridge template, or bundler.
-Tier 2 installs into the real plugins dir, restarts omarchy-shell, drives
-summon/call/hide over IPC and asserts values plus clean session logs; it is
-the release gate. Both skip cleanly when their prerequisites are missing.
-Run live verification before tagging a release: offline checks have missed
-TDZ ordering, QtObject child limits, tree-shaking holes and recursion loops
-that the real engine caught immediately.
+impact; `TestOffscreenBridgeChurn` additionally destroys and replaces the
+bridge mid-session and asserts writes still reach disk — the regression for
+sink re-targeting. Run it after any change to the runtime, bridge template,
+or bundler. Tier 2 installs into the real plugins dir, restarts
+omarchy-shell, drives summon/call/hide over IPC and asserts values plus clean
+session logs; it is the release gate. Both skip cleanly when their
+prerequisites are missing. Run live verification before tagging a release:
+offline checks have missed TDZ ordering, QtObject child limits, tree-shaking
+holes and recursion loops that the real engine caught immediately.
 
 ---
 
