@@ -858,6 +858,10 @@ chore: bump deps
   restructure), `chore` (maintenance, no behavior change). Optional scope in
   parens (`bridge`, `log`, `skills`, `cli`, `examples`, ...).
 - Summary: imperative, lowercase, under ~72 chars. Body bullets explain why.
+- **Message-only by default**: small fixes and one-liners get no body at all
+  (`fix(create): use npx jsr add @oma/runtime`). Add a body only when it
+  carries information the summary cannot - context, trade-offs, or a
+  non-obvious why.
 - **No emojis and no em dashes - hyphens only, not even when it really,
   really seems necessary.**
 
