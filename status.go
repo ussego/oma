@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -118,6 +120,21 @@ func runStatus(dir string) error {
 		line(badMark, "installed", muted.Render(dest)+" - older than local build")
 	} else {
 		line(okMark, "installed", dest)
+	}
+
+	// persisted settings: last write hints at persistence health
+	home, _ := os.UserHomeDir()
+	settingsPath := filepath.Join(home, ".config", "omarchy", m.ID+".json")
+	if info, err := os.Stat(settingsPath); err == nil {
+		line(okMark, "settings", muted.Render(settingsPath)+" - written "+humanAge(info.ModTime()))
+	} else {
+		line(infoMark, "settings", muted.Render("none yet (config() writes on first change)"))
+	}
+
+	// shell-log scan: generated-bridge TypeErrors are the signature of a
+	// dead persistence sink; surface them here instead of in `oma log`.
+	if hint := recentBridgeBreakage(bridge); hint != "" {
+		line(badMark, "log", hint+" (see oma log --level warn)")
 	}
 
 	// launcher entries
@@ -262,4 +279,44 @@ func newerModTime(a, b time.Time) time.Time {
 		return b
 	}
 	return a
+}
+
+// humanAge renders a relative age like "2m ago" / "3h ago" / "5d ago".
+func humanAge(t time.Time) string {
+	d := time.Since(t)
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return fmt.Sprintf("%dm ago", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh ago", int(d.Hours()))
+	default:
+		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
+	}
+}
+
+// recentBridgeBreakage tails the running shell's log and reports the first
+// generated-bridge TypeError/ReferenceError mentioning the plugin's bridge
+// file - the signature of a dead persistence sink or a QML load error. "" =
+// clean (or the shell is not running / qs is missing).
+func recentBridgeBreakage(bridgeRel string) string {
+	pid, err := findShellPID()
+	if err != nil {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "qs", "log", "--pid", strconv.Itoa(pid), "-t", "200")
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	base := filepath.Base(bridgeRel)
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.Contains(line, base) && (strings.Contains(line, "TypeError") || strings.Contains(line, "ReferenceError")) {
+			return strings.TrimSpace(line)
+		}
+	}
+	return ""
 }

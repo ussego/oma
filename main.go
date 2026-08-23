@@ -67,6 +67,16 @@ func main() {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			os.Exit(1)
 		}
+	case "ipc":
+		if err := runIPC(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
+	case "dev":
+		if err := runDev(arg()); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
 	case "log":
 		if err := runLog(".", os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
@@ -209,8 +219,9 @@ var cmdHelp = map[string]struct {
 			{"-d", "--description", "=<val>", "Manifest description"},
 			{"-v", "--version", "=<val>", "Semver version (default 0.1.0, flag-only)"},
 			{"", "--panel-mode", "=<val>", "Panel presentation: attached, window or both (default attached)"},
+			{"-t", "--template", "=<val>", "Scaffold a full example instead of skeletons: todo, counter, settings-panel"},
 		},
-		desc: "Scaffold a new oma project (interactive wizard).\n\nAny flag you pass is skipped in the wizard, so this runs\nfully non-interactive when everything is provided:\n\noma create omusic -s panel,overlay -a ussego -d \"Music plugin\"\noma create omusic -s panel --panel-mode window\noma create omusic -s panel --panel-mode attached   # panel+bar-widget (default)\noma create omusic -s panel --panel-mode window      # only-window (no bar widget)\noma create omusic -s panel,bar-widget --panel-mode window  # window+bar-widget\noma create omusic -s panel --panel-mode both        # panel+bar-widget+window\n\nThe finish screen also prints 'npx skills add ussego/oma' to install the\nagent skills that teach plugin development.",
+		desc: "Scaffold a new oma project (interactive wizard).\n\nAny flag you pass is skipped in the wizard, so this runs\nfully non-interactive when everything is provided:\n\noma create omusic -s panel,overlay -a ussego -d \"Music plugin\"\noma create omusic -s panel --panel-mode window\noma create omusic -s panel --panel-mode attached   # panel+bar-widget (default)\noma create omusic -s panel --panel-mode window      # only-window (no bar widget)\noma create omusic -s panel,bar-widget --panel-mode window  # window+bar-widget\noma create omusic -s panel --panel-mode both        # panel+bar-widget+window\noma create todo -s panel --panel-mode window -t todo  # full todo example\n\nTemplates (-t) ship complete src/index.js + ui/Panel.qml for a\npersistent todo list, a counter, or a settings panel - build\nand install them as-is, then edit.\n\nThe finish screen also prints 'npx skills add ussego/oma' to install the\nagent skills that teach plugin development.",
 	},
 	"surface": {
 		args: "add [kinds...]",
@@ -218,7 +229,19 @@ var cmdHelp = map[string]struct {
 	},
 	"status": {
 		args: "[dir]",
-		desc: "One-shot, read-only project state.\n\nShows id/version/kinds/entry points, whether the build is fresh\nor stale, the installed copy state, launcher entries and tools.",
+		desc: "One-shot, read-only project state.\n\nShows id/version/kinds/entry points, whether the build is fresh\nor stale, the installed copy state, launcher entries and tools.\nAlso reports when the settings file was last written and scans the\nrecent shell log for generated-bridge errors.",
+	},
+	"ipc": {
+		args: "[pluginId] <verb> [args...]",
+		flags: []helpFlag{
+			{"-p", "--plugin", "=<id>", "Plugin id (default: manifest id when inside a project)"},
+			{"", "--json", "", "Pass the call arg verbatim as JSON (multiple args become a JSON array)"},
+		},
+		desc: "Talk to the shell and to a plugin's loaded surface.\n\nWraps omarchy-shell shell ... with the sharp edges filed off.\nInside a project the plugin id comes from manifest.json; the\nfirst positional is the verb:\n\noma ipc summon                  # open the panel\noma ipc toggle                  # open/close\noma ipc hide                    # close\noma ipc ping                    # is the shell alive?\noma ipc addTodo \"buy milk\"       # call a surface action\noma ipc call addTodo \"buy milk\"  # explicit call (actions named summon/...)\n\nOutside a project, pass the plugin id (or use -p):\noma ipc ussego.todo-app summon\noma ipc -p ussego.todo-app snapshot\n\nThe mandatory arg slot of the shell's call() is auto-filled with \"{}\",\nand the ambiguous \"unknown\" answer is resolved locally (surface not\nloaded vs method missing). Actions returning a value print it; void\nactions print nothing on success.",
+	},
+	"dev": {
+		args: "[dir]",
+		desc: "Watch the project and rebuild on every edit.\n\nBuilds, installs and restarts the shell on each change to src/,\nui/, manifest.json or oma.json. Hidden panels are destroyed (not\njust hidden), so a shell restart is the only dependable refresh -\nthis loop automates it. Ctrl-C stops.",
 	},
 	"log": {
 		args: "[flags]",
@@ -374,6 +397,8 @@ func usage() {
 				{cmd: "status", example: "[dir]", desc: "Project state at a glance"},
 				{cmd: "log", example: "[flags]", desc: "Plugin logs from the running shell"},
 				{cmd: "tail", example: "[flags]", desc: "Follow logs (alias for log -f)"},
+				{cmd: "ipc", example: "action [args]", desc: "Call an action on a loaded surface"},
+				{cmd: "dev", example: "[dir]", desc: "Watch + rebuild + restart shell"},
 				{cmd: "install", example: "[dir]", desc: "Copy the plugin into ~/.config/omarchy/plugins/"},
 				{cmd: "launcher add", example: "[name]", desc: "Create launcher entries from oma.json"},
 				{cmd: "uninstall", example: "[dir]", desc: "Delete it from ~/.config/omarchy/plugins/"},

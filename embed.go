@@ -20,6 +20,9 @@ var assetFS embed.FS
 //go:embed assets/skill-data
 var skillFS embed.FS
 
+//go:embed assets/templates
+var templateFS embed.FS
+
 // omaDir returns the per-user directory for extracted assets, creating it.
 func omaDir() (string, error) {
 	cache, err := os.UserCacheDir()

@@ -102,3 +102,53 @@ func TestSanitizeAndUserNamespace(t *testing.T) {
 		t.Errorf("userNamespace = %q", got)
 	}
 }
+
+// Template scaffolds produce a buildable project with the placeholders
+// substituted (a template that forgets __BRIDGE__ breaks at load time).
+func TestScaffoldTemplate(t *testing.T) {
+	for _, tpl := range []string{"todo", "counter", "settings-panel"} {
+		dir := filepath.Join(t.TempDir(), "tpl-"+tpl)
+		if _, err := scaffoldWithOptions(dir, []string{"panel"}, scaffoldOptions{Author: "tester", PanelMode: "window", Template: tpl}); err != nil {
+			t.Fatalf("%s: scaffold: %v", tpl, err)
+		}
+		m, err := readManifest(filepath.Join(dir, "manifest.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		bridge := bridgeBaseName(capitalize(m.Name), m.Kinds)
+		panel, err := os.ReadFile(filepath.Join(dir, "ui", "Panel.qml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(panel), bridge+" {") {
+			t.Errorf("%s: Panel.qml does not instantiate the %s bridge", tpl, bridge)
+		}
+		if strings.Contains(string(panel), "__BRIDGE__") || strings.Contains(string(panel), "__ID__") {
+			t.Errorf("%s: template placeholders survived", tpl)
+		}
+		if _, err := runBuild(dir); err != nil {
+			t.Errorf("%s: build: %v", tpl, err)
+		}
+	}
+}
+
+// The todo template must use the guarded-persistence pattern (no fsReady
+// hand-rolling) - it is the canonical example of the fixed config().
+func TestTodoTemplateUsesConfigPersistence(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "tpl-todo")
+	if _, err := scaffoldWithOptions(dir, []string{"panel"}, scaffoldOptions{Author: "tester", PanelMode: "window", Template: "todo"}); err != nil {
+		t.Fatal(err)
+	}
+	src, err := os.ReadFile(filepath.Join(dir, "src", "index.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"config(", "onReady", "snapshot"} {
+		if !strings.Contains(string(src), want) {
+			t.Errorf("todo template missing %q", want)
+		}
+	}
+	if strings.Contains(string(src), "fsReady") {
+		t.Error("todo template still hand-rolls persistence (fsReady)")
+	}
+}

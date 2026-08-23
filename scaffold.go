@@ -81,6 +81,7 @@ type scaffoldOptions struct {
 	Version     string
 	Author      string
 	PanelMode   string // attached | window | both
+	Template    string // todo | counter | settings-panel
 }
 
 func scaffold(name string, kinds []string) error {
@@ -199,6 +200,71 @@ func scaffoldWithOptions(name string, kinds []string, opts scaffoldOptions) ([]s
 				return nil, err
 			}
 		}
+	}
+
+	// Template gallery: overwrite the skeletons with a full example when the
+	// user asked for one (oma create <name> -t todo).
+	if opts.Template != "" {
+		var tplErr error
+		created, tplErr = applyTemplate(created, dir, opts.Template, m.ID, bridge)
+		if tplErr != nil {
+			return nil, tplErr
+		}
+	}
+	return created, nil
+}
+
+// applyTemplate copies an embedded template (assets/templates/<name>/) into
+// the project, substituting __ID__ (plugin id) and __BRIDGE__ (bridge
+// component name). Templates own src/index.js and ui/Panel.qml - they are
+// meant for panel projects (oma create -t todo -s panel --panel-mode window).
+func applyTemplate(created []string, dir, name, id, bridge string) ([]string, error) {
+	root := "assets/templates/" + name
+	if _, err := templateFS.ReadDir(root); err != nil {
+		return nil, fmt.Errorf("unknown template %q (available: todo, counter, settings-panel)", name)
+	}
+	add := func(rel string, err error) error {
+		if err != nil {
+			return err
+		}
+		created = append(created, rel)
+		return nil
+	}
+	var walk func(rel string) error
+	walk = func(rel string) error {
+		dirPath := root
+		if rel != "" {
+			dirPath += "/" + rel
+		}
+		entries, err := templateFS.ReadDir(dirPath)
+		if err != nil {
+			return err
+		}
+		for _, e := range entries {
+			child := filepath.Join(rel, e.Name())
+			if e.IsDir() {
+				if err := os.MkdirAll(filepath.Join(dir, child), 0o755); err != nil {
+					return err
+				}
+				if err := walk(child); err != nil {
+					return err
+				}
+				continue
+			}
+			data, err := templateFS.ReadFile(root + "/" + child)
+			if err != nil {
+				return err
+			}
+			content := strings.ReplaceAll(string(data), "__ID__", id)
+			content = strings.ReplaceAll(content, "__BRIDGE__", bridge)
+			if err := add(filepath.ToSlash(child), writeFile(filepath.Join(dir, filepath.FromSlash(child)), content)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := walk(""); err != nil {
+		return nil, err
 	}
 	return created, nil
 }

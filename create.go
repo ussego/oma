@@ -79,6 +79,7 @@ func runCreate(args []string) error {
 			Version:     f.ver,
 			Author:      f.author,
 			PanelMode:   mode,
+			Template:    f.template,
 		})
 		if err != nil {
 			return err
@@ -259,6 +260,7 @@ type createFlags struct {
 	name, desc, ver, author string
 	kinds                   []string
 	panelMode               string // attached | window | both
+	template                string // todo | counter | settings-panel
 }
 
 // parseCreateArgs parses positionals plus bun-style flags. Both "--flag val"
@@ -324,6 +326,13 @@ func parseCreateArgs(args []string) (createFlags, error) {
 			default:
 				return f, fmt.Errorf("unknown --panel-mode %q (attached, window or both)", val)
 			}
+		case "t", "template":
+			f.template = strings.ToLower(strings.TrimSpace(val))
+			switch f.template {
+			case "todo", "counter", "settings-panel":
+			default:
+				return f, fmt.Errorf("unknown template %q (todo, counter or settings-panel)", val)
+			}
 		default:
 			return f, fmt.Errorf("unknown flag %q (see oma create --help)", flag)
 		}
@@ -370,6 +379,7 @@ func runWizard(f createFlags, preConfirmed string) (wizardResult, bool) {
 		help:         help.New(),
 		chosen:       map[int]bool{},
 		preConfirmed: preConfirmed,
+		template:     f.template,
 	}
 	// seed from flags; the wizard only prompts for what's missing
 	m.name = f.name
@@ -501,6 +511,7 @@ type wizardModel struct {
 	author       string
 	panelMode    string // attached | window | both
 	panelCursor  int
+	template     string // todo | counter | settings-panel (from -t flag)
 	input        textinput.Model
 	cursor       int
 	chosen       map[int]bool
@@ -537,6 +548,7 @@ func (m wizardModel) scaffoldForOutro() (tea.Model, tea.Cmd) {
 		Version:     ver,
 		Author:      m.author,
 		PanelMode:   mode,
+		Template:    m.template,
 	})
 	m.created = files
 	if err != nil {
