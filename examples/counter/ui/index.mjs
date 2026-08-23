@@ -125,6 +125,7 @@ function config(arg1, arg2) {
   const store = new Map(Object.entries(defaults));
   const listeners = /* @__PURE__ */ new Set();
   const validate = typeof options.validate === "function" ? options.validate : null;
+  const coerce = typeof options.coerce === "function" ? options.coerce : null;
   if (typeof options.debounceMs === "number" && options.debounceMs > 0) {
     maxDebounceMs = Math.max(maxDebounceMs, options.debounceMs);
   }
@@ -135,6 +136,10 @@ function config(arg1, arg2) {
       return store.get(key);
     },
     set(key, value) {
+      if (coerce) {
+        value = coerce(key, value);
+        if (value === void 0 || value === null) return;
+      }
       store.set(key, value);
       if (!seeded) pending.add(prefix + key);
       schedulePersist();

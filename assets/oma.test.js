@@ -134,4 +134,32 @@ unsubC();
 c.set("v", 2);
 assert.equal(cHits, 0);
 
+// config coerce sanitizes set() writes; undefined/null rejects (old kept)
+const bounded = config({ volume: 80 }, {
+	coerce(key, value) {
+		if (key === "volume") return Math.max(0, Math.min(100, value));
+		return value;
+	},
+});
+bounded.set("volume", 150);
+assert.equal(bounded.get("volume"), 100);
+bounded.set("volume", -5);
+assert.equal(bounded.get("volume"), 0);
+const rejecting = config({ mode: "auto" }, {
+	coerce(key, value) {
+		if (key === "mode" && ["auto", "dark", "light"].indexOf(value) === -1) return null;
+		return value;
+	},
+});
+rejecting.set("mode", "neon");
+assert.equal(rejecting.get("mode"), "auto"); // rejected write kept the old value
+rejecting.set("mode", "dark");
+assert.equal(rejecting.get("mode"), "dark");
+// validate stays seed-only - coerce is the set-time hook
+const guarded = config({ level: 5 }, {
+	validate(key, value) { return key === "level" ? Math.min(10, value) : value; },
+});
+guarded.set("level", 99);
+assert.equal(guarded.get("level"), 99); // set() does not run validate
+
 console.log("runtime OK");

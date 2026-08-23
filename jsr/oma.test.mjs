@@ -122,6 +122,31 @@ test("snap deep-clones proxied values into plain structures", async () => {
 	assert.equal(snap("x"), "x");
 });
 
+test("coerce sanitizes set() writes; undefined/null rejects", async () => {
+	const { config } = await freshRuntime();
+	const s = config({ volume: 80 }, { coerce: (k, v) => (k === "volume" ? Math.max(0, Math.min(100, v)) : v) });
+	s.set("volume", 150);
+	assert.equal(s.get("volume"), 100);
+	s.set("volume", -5);
+	assert.equal(s.get("volume"), 0);
+	const r = config({ mode: "auto" }, {
+		coerce: (k, v) => (k === "mode" && ["auto", "dark", "light"].includes(v) ? v : null),
+	});
+	r.set("mode", "neon");
+	assert.equal(r.get("mode"), "auto"); // rejected - old value kept
+	r.set("mode", "dark");
+	assert.equal(r.get("mode"), "dark");
+});
+
+test("validate stays seed-only; coerce is the set-time hook", async () => {
+	const { config, __omaBind } = await freshRuntime();
+	const s = config({ level: 5 }, { validate: (k, v) => (k === "level" ? Math.min(10, v) : v) });
+	__omaBind({ level: 99 }, () => {});
+	assert.equal(s.get("level"), 10); // seed sanitized
+	s.set("level", 99);
+	assert.equal(s.get("level"), 99); // set() untouched by validate
+});
+
 test("object state deep mutations notify; subscribe only on the root", async () => {
 	const { state } = await freshRuntime();
 	const s = state({ items: [] });

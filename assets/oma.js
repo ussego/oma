@@ -257,6 +257,10 @@ function seedStore(c, data) {
  * Options:
  * - `validate(key, value)` - sanitize persisted input at seed time; return
  *   the value to store (or undefined/null to keep the default).
+ * - `coerce(key, value)` - sanitize writes at set() time; return the value
+ *   to store, or undefined/null to reject the write (old value kept). Keeps
+ *   the persisted store and everything mirroring it inside the limits
+ *   validate enforces on seed.
  * - `debounceMs` - override the 200ms write debounce for this plugin (the
  *   slowest config wins).
  * - Namespace form `config("ns", defaults)` prefixes every key with
@@ -264,7 +268,7 @@ function seedStore(c, data) {
  *
  * @template {Record<string, unknown>} T
  * @param {string | T} arg1 namespace string, or the defaults object
- * @param {T | { validate?: (key: string, value: unknown) => unknown, debounceMs?: number }} [arg2] defaults (namespace form) or options
+ * @param {T | { validate?: (key: string, value: unknown) => unknown, coerce?: (key: string, value: unknown) => unknown, debounceMs?: number }} [arg2] defaults (namespace form) or options
  * @returns {{ get(key: keyof T): any, set(key: keyof T, value: any): void,
  *   subscribe(listener: (key: string, value: unknown) => void): Unsubscribe,
  *   onReady(cb: () => void): Unsubscribe, readonly ready: boolean }}
@@ -281,6 +285,7 @@ export function config(arg1, arg2) {
 	const store = new Map(Object.entries(defaults));
 	const listeners = new Set();
 	const validate = typeof options.validate === "function" ? options.validate : null;
+	const coerce = typeof options.coerce === "function" ? options.coerce : null;
 	if (typeof options.debounceMs === "number" && options.debounceMs > 0) {
 		maxDebounceMs = Math.max(maxDebounceMs, options.debounceMs);
 	}
@@ -293,6 +298,10 @@ export function config(arg1, arg2) {
 			return store.get(key);
 		},
 		set(key, value) {
+			if (coerce) {
+				value = coerce(key, value);
+				if (value === undefined || value === null) return; // rejected - keep the old value
+			}
 			store.set(key, value);
 			if (!seeded) pending.add(prefix + key);
 			schedulePersist();
