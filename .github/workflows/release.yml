@@ -106,11 +106,15 @@ jobs:
     # Keeps packaging/aur/PKGBUILD current: pkgver + checksums straight from
     # the release's sha256sums.txt, committed only when something changed.
     # The GITHUB_TOKEN push does not re-trigger workflows, so no loop.
+    # Checks out main explicitly: a tag-push event checks out the tag, whose
+    # tree predates scripts/bump-pkgbuild.sh.
     bump-pkgbuild:
         needs: release
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v7
+              with:
+                  ref: main
 
             - name: Update packaging/aur/PKGBUILD
               run: bash scripts/bump-pkgbuild.sh "${GITHUB_REF_NAME#v}"
