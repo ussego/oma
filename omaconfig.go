@@ -12,7 +12,8 @@ import (
 // manifest.json). Configuration is data, not code: the Go CLI reads it today
 // and omarchy itself can consume it natively later without running anything.
 type omaConfig struct {
-	Icon      string             `json:"icon,omitempty"`
+	Icon      string             `json:"icon,omitempty"`    // launcher icons: freedesktop name, path, or URL
+	BarIcon   string             `json:"barIcon,omitempty"` // bar-widget glyph (OpticalGlyph text)
 	Panel     *panelConfig       `json:"panel,omitempty"`
 	Launchers []launcherEntryDef `json:"launchers,omitempty"`
 }

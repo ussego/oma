@@ -180,10 +180,10 @@ func scaffoldWithOptions(name string, kinds []string, opts scaffoldOptions) ([]s
 	}
 	bridge := bridgeBaseName(capitalize(project), pluginKinds)
 
-	// bar-widget glyph comes from the global oma.json icon, else a cog
+	// bar-widget glyph comes from the global oma.json barIcon, else a cog
 	icon := "\uf013"
-	if cfg, err := loadOMAConfig(dir); err == nil && cfg.Icon != "" {
-		icon = cfg.Icon
+	if cfg, err := loadOMAConfig(dir); err == nil && cfg.BarIcon != "" {
+		icon = cfg.BarIcon
 	}
 
 	for _, k := range kinds {

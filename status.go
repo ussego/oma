@@ -128,7 +128,7 @@ func runStatus(dir string) error {
 	} else {
 		apps, _ := applicationsDir()
 		for i, def := range cfg.Launchers {
-			filename, _ := renderLauncherEntry(m, def, cfg.Icon, i)
+			filename, _ := renderLauncherEntry(m, def, cfg.Icon, i, dir, false)
 			path := filepath.Join(apps, filename)
 			if _, err := os.Stat(path); err != nil {
 				line(badMark, "", path+" - not created")

@@ -336,3 +336,42 @@ func TestSurfaceAddInvalidPanelMode(t *testing.T) {
 		t.Fatal("expected missing-value error")
 	}
 }
+
+func TestSurfaceAddBarIcon(t *testing.T) {
+	// barIcon (glyph vocabulary) must land in a new bar-widget skeleton,
+	// while the launcher icon (freedesktop vocabulary) must not leak into it.
+	dir := t.TempDir()
+
+	target := filepath.Join(dir, "glyphproj")
+	if _, err := scaffoldWithOptions(target, []string{"overlay"}, scaffoldOptions{Author: "tester"}); err != nil {
+		t.Fatal(err)
+	}
+	writeOMAConfig(t, target, `{"barIcon":"\uf4d8"}`)
+	if err := runSurfaceAdd(target, []string{"bar-widget"}); err != nil {
+		t.Fatal(err)
+	}
+	qml := readTrim(t, filepath.Join(target, "ui", "BarWidget.qml"))
+	// the glyph is %q-escaped into the QML, so look for the literal sequence
+	if !strings.Contains(qml, `\uf4d8`) {
+		t.Fatalf("barIcon not used in the skeleton:\n%s", qml)
+	}
+	if strings.Contains(qml, `\uf013`) {
+		t.Fatal("cog fallback used despite barIcon")
+	}
+
+	target2 := filepath.Join(dir, "iconproj")
+	if _, err := scaffoldWithOptions(target2, []string{"overlay"}, scaffoldOptions{Author: "tester"}); err != nil {
+		t.Fatal(err)
+	}
+	writeOMAConfig(t, target2, `{"icon":"utilities-system-monitor"}`)
+	if err := runSurfaceAdd(target2, []string{"bar-widget"}); err != nil {
+		t.Fatal(err)
+	}
+	qml2 := readTrim(t, filepath.Join(target2, "ui", "BarWidget.qml"))
+	if !strings.Contains(qml2, `\uf013`) {
+		t.Fatalf("expected the cog fallback:\n%s", qml2)
+	}
+	if strings.Contains(qml2, "utilities-system-monitor") {
+		t.Fatal("launcher icon leaked into the bar glyph")
+	}
+}

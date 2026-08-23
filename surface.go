@@ -161,8 +161,8 @@ func runSurfaceAdd(dir string, args []string) error {
 	}
 	bridge := bridgeBaseName(name, m.Kinds)
 	icon := "\uf013"
-	if cfg, err := loadOMAConfig(dir); err == nil && cfg.Icon != "" {
-		icon = cfg.Icon
+	if cfg, err := loadOMAConfig(dir); err == nil && cfg.BarIcon != "" {
+		icon = cfg.BarIcon
 	}
 
 	var added []string

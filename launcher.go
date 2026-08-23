@@ -3,9 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -72,9 +76,125 @@ func defaultLauncherAction(kinds []string) string {
 	return "toggle"
 }
 
+// resolveLauncherIcon returns the Icon= value for one entry. Theme names
+// pass through unchanged; URL and existing-file refs are materialized into
+// the user hicolor theme (mirroring omarchy-tui-install) when materialize
+// is true, so the .desktop can reference a plain theme name. materialize
+// is false for read-only display (oma status).
+func resolveLauncherIcon(ref, name, dir string, materialize bool) string {
+	if !materialize || ref == "" {
+		return ref
+	}
+	src := ref
+	if !strings.HasPrefix(ref, "http://") && !strings.HasPrefix(ref, "https://") {
+		if !filepath.IsAbs(src) {
+			src = filepath.Join(dir, src)
+		}
+		if _, err := os.Stat(src); err != nil {
+			return ref // theme name (or path that does not exist): pass through
+		}
+	}
+	iconName, err := materializeIcon(ref, name, dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: icon %q: %v\n", ref, err)
+		return ref
+	}
+	return iconName
+}
+
+// materializeIcon installs an icon URL or file into the user hicolor theme
+// and returns the theme name to reference. SVG refs go to scalable/apps
+// (freedesktop hicolor spec); everything else to 256x256/apps. Already
+// installed icons are skipped. The icon cache refresh is best-effort, like
+// omarchy-tui-install.
+func materializeIcon(ref, name, dir string) (string, error) {
+	iconName := safeIconName(name)
+	if iconName == "" {
+		iconName = "oma"
+	}
+	base := filepath.Join(iconsHome(), "hicolor")
+	ext := "png"
+	sub := "256x256"
+	if strings.HasSuffix(strings.ToLower(ref), ".svg") {
+		ext, sub = "svg", "scalable"
+	} else if !strings.HasPrefix(ref, "http://") && !strings.HasPrefix(ref, "https://") {
+		if e := strings.TrimPrefix(filepath.Ext(ref), "."); e != "" {
+			ext = e
+		}
+	}
+	targetDir := filepath.Join(base, sub, "apps")
+	target := filepath.Join(targetDir, iconName+"."+ext)
+	if _, err := os.Stat(target); err == nil {
+		return iconName, nil // already installed
+	}
+
+	data, err := iconData(ref, dir)
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		return "", err
+	}
+	if err := writeFile(target, string(data)); err != nil {
+		return "", err
+	}
+	if err := exec.Command("gtk-update-icon-cache", filepath.Join(base)).Run(); err != nil {
+		// cache refresh is best-effort; the icon still resolves by name
+	}
+	return iconName, nil
+}
+
+// iconData fetches a URL or reads a local file (absolute or relative to dir).
+func iconData(ref, dir string) ([]byte, error) {
+	if strings.HasPrefix(ref, "http://") || strings.HasPrefix(ref, "https://") {
+		client := &http.Client{Timeout: 15 * time.Second}
+		resp, err := client.Get(ref)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("GET %s: %s", ref, resp.Status)
+		}
+		return io.ReadAll(resp.Body)
+	}
+	src := ref
+	if !filepath.IsAbs(src) {
+		src = filepath.Join(dir, src)
+	}
+	return os.ReadFile(src)
+}
+
+// safeIconName mirrors omarchy-tui-install's sanitizer: lowercase,
+// non-alphanumeric runs become dashes, leading/trailing dashes trimmed.
+func safeIconName(s string) string {
+	var b strings.Builder
+	lastDash := false
+	for _, r := range strings.ToLower(s) {
+		if !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9') {
+			if !lastDash && b.Len() > 0 {
+				b.WriteByte('-')
+			}
+			lastDash = true
+			continue
+		}
+		b.WriteRune(r)
+		lastDash = false
+	}
+	return b.String()
+}
+
+func iconsHome() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ".icons"
+	}
+	return filepath.Join(home, ".local", "share", "icons")
+}
+
 // renderLauncherEntry produces the .desktop file body for one configured entry.
 // filename is <id>.desktop for the first entry, <id>-<slug(name)>.desktop after.
-func renderLauncherEntry(m manifest, def launcherEntryDef, globalIcon string, index int) (string, string) {
+func renderLauncherEntry(m manifest, def launcherEntryDef, globalIcon string, index int, dir string, materialize bool) (string, string) {
 	execLine := def.Exec
 	tryExec := ""
 	if execLine == "" {
@@ -93,6 +213,7 @@ func renderLauncherEntry(m manifest, def launcherEntryDef, globalIcon string, in
 	if icon == "" {
 		icon = defaultIcon
 	}
+	icon = resolveLauncherIcon(icon, def.Name, dir, materialize)
 
 	generic := def.GenericName
 	if generic == "" {
@@ -170,7 +291,7 @@ func writeLauncherEntries(dir string) ([]string, error) {
 	}
 	var written []string
 	for i, def := range cfg.Launchers {
-		filename, content := renderLauncherEntry(m, def, cfg.Icon, i)
+		filename, content := renderLauncherEntry(m, def, cfg.Icon, i, dir, true)
 		path := filepath.Join(apps, filename)
 		if err := writeFile(path, content); err != nil {
 			return written, fmt.Errorf("write %s: %w", filepath.Base(path), err)

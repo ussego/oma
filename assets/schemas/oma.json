@@ -12,8 +12,12 @@
     },
     "icon": {
       "type": "string",
-      "description": "Global icon for the plugin: a freedesktop icon name or a file path. Used by launcher entries and available to surfaces.",
+      "description": "Launcher icon: a freedesktop icon name, a file path (absolute or relative to the project), or an http(s) URL. URLs and files are installed into ~/.local/share/icons/hicolor/ by 'oma install' / 'oma launcher add' and referenced by name.",
       "default": "application-x-executable"
+    },
+    "barIcon": {
+      "type": "string",
+      "description": "Glyph for bar-widget surfaces: a Nerd Fonts codepoint (e.g. \"\\uf013\") or any text, rendered by OpticalGlyph in the bar font. Scaffolded bar widgets fall back to a cog glyph."
     },
     "panel": {
       "type": "object",
@@ -50,7 +54,7 @@
           },
           "icon": {
             "type": "string",
-            "description": "Overrides the global icon for this entry."
+            "description": "Overrides the global icon for this entry (same ref types: name, path, or URL)."
           },
           "genericName": {
             "type": "string",

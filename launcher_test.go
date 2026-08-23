@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -225,5 +227,70 @@ func TestLauncherDefaultToggleForBarWidgetOnly(t *testing.T) {
 	}
 	if got := readTrim(t, written[0]); !strings.Contains(got, "Exec=omarchy-shell shell toggle ") {
 		t.Fatalf("expected toggle default:\n%s", got)
+	}
+}
+
+func TestLauncherIconMaterialization(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	dir := t.TempDir()
+	target := filepath.Join(dir, "omusic")
+	if _, err := scaffoldWithOptions(target, []string{"panel"}, scaffoldOptions{Author: "tester"}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _, _ = removeLauncherEntries(target) })
+
+	// project-relative file icon (svg -> scalable/apps) and a remote URL
+	iconsDir := filepath.Join(target, "icons")
+	if err := os.MkdirAll(iconsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	svg := `<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>`
+	if err := os.WriteFile(filepath.Join(iconsDir, "logo.svg"), []byte(svg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("PNGDATA"))
+	}))
+	defer srv.Close()
+
+	writeOMAConfig(t, target, `{
+	  "launchers": [
+	    {"name": "Local App", "action": "summon", "icon": "icons/logo.svg"},
+	    {"name": "Remote App", "action": "summon", "icon": "`+srv.URL+`/icon.png"},
+	    {"name": "Theme App", "action": "summon", "icon": "audio-card"}
+	  ]
+	}`)
+
+	written, err := writeLauncherEntries(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(written) != 3 {
+		t.Fatalf("written = %v", written)
+	}
+
+	// .desktop Icon= lines reference the materialized theme names
+	contents := ""
+	for _, p := range written {
+		contents += readTrim(t, p)
+	}
+	for _, want := range []string{"Icon=local-app", "Icon=remote-app", "Icon=audio-card"} {
+		if !strings.Contains(contents, want) {
+			t.Fatalf("missing %s in:\n%s", want, contents)
+		}
+	}
+
+	// files landed in the hicolor theme (svg spec-dir, png size-dir)
+	svgPath := filepath.Join(home, ".local", "share", "icons", "hicolor", "scalable", "apps", "local-app.svg")
+	if got := readTrim(t, svgPath); got != svg {
+		t.Fatalf("scalable icon = %q", got)
+	}
+	pngPath := filepath.Join(home, ".local", "share", "icons", "hicolor", "256x256", "apps", "remote-app.png")
+	if got := readTrim(t, pngPath); got != "PNGDATA" {
+		t.Fatalf("256x256 icon = %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".local", "share", "icons", "hicolor", "256x256", "apps", "audio-card.png")); !os.IsNotExist(err) {
+		t.Fatal("theme-name ref must not be materialized")
 	}
 }

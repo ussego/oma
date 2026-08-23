@@ -190,7 +190,7 @@ func ensureLauncherService(dir string) error {
 
 	var entries []struct{ Filename, Content string }
 	for i, def := range cfg.Launchers {
-		fn, content := renderLauncherEntry(m, def, cfg.Icon, i)
+		fn, content := renderLauncherEntry(m, def, cfg.Icon, i, dir, true)
 		entries = append(entries, struct{ Filename, Content string }{fn, content})
 	}
 	if len(entries) == 0 {

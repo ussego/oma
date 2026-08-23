@@ -597,8 +597,14 @@ autocomplete and validate every available key.
 }
 ```
 
-- `icon` — global icon string (freedesktop name or path), default
-  `application-x-executable`; used by launcher entries and available to surfaces.
+- `icon` — launcher icon: freedesktop name, file path (absolute or
+  project-relative), or http(s) URL; default `application-x-executable`.
+  URLs and files are installed into `~/.local/share/icons/hicolor/` by
+  `oma install` / `oma launcher add` (entry name becomes the icon name;
+  svg goes to `scalable/apps`, other formats to `256x256/apps`).
+- `barIcon` — bar-widget glyph: a Nerd Fonts codepoint (e.g. `\uf013`) or
+  any text rendered by `OpticalGlyph` in the bar font; scaffolded bar
+  widgets fall back to a cog glyph.
 - `panel` — panel presentation mode: `attached` (bar-anchored popup + widget,
   default), `window` (standalone FloatingWindow, no widget) or `both`. Set by
   `oma create` / `oma surface add --panel-mode`.
@@ -612,8 +618,6 @@ autocomplete and validate every available key.
   drops them from oma.json again (multi-select wizard when unnamed) and deletes
   only files carrying the `X-Oma-Managed=true` marker. Absent `launchers[]` ⇒
   nothing is ever created.
-- Future: richer icons (SVG/PNG files shipped in the plugin, or remote URLs) —
-  pass-through string today.
 
 Do not implement unused commands merely for completeness.
 
