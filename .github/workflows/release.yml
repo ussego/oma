@@ -77,8 +77,10 @@ jobs:
 
             - name: Dry run
               working-directory: jsr
-              run: npx jsr publish --dry-run
+              # --allow-dirty: the sed above modifies jsr.json in the work
+              # tree, and jsr publish aborts on uncommitted changes
+              run: npx jsr publish --dry-run --allow-dirty
 
             - name: Publish
               working-directory: jsr
-              run: npx jsr publish
+              run: npx jsr publish --allow-dirty
