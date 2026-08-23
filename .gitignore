@@ -4,8 +4,6 @@ dist/
 *.tar.gz
 
 # local builds of the CLI
-cli/oma
-cli/cli
 /oma
 oma-v*
 

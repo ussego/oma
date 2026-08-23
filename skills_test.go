@@ -13,7 +13,7 @@ import (
 // point: it must carry the frontmatter the skills CLI requires and route only
 // to skills that actually exist in skill-data.
 func TestSkillStubRoutesToRealSkills(t *testing.T) {
-	stub, err := os.ReadFile(filepath.Join("..", "skills", "oma", "SKILL.md"))
+	stub, err := os.ReadFile(filepath.Join("skills", "oma", "SKILL.md"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -115,7 +115,7 @@ mise run live-shell   # tier-2 full round trip - RESTARTS YOUR SHELL
 mise run install-dev  # symlink dist/oma to ~/.local/bin/oma-dev
 
 # or plain Go from the repo root
-go build -trimpath -ldflags "-s -w -X main.cliVersion=dev" -o dist/oma ./cli
+go build -trimpath -ldflags "-s -w -X main.cliVersion=dev" -o dist/oma .
 go test ./...
 ```
 

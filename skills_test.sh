@@ -11,7 +11,7 @@ BIN="$(mktemp /tmp/oma-skills.XXXXXX)"
 trap 'rm -f "$BIN"' EXIT
 
 # Build the CLI and run it against the repo's embedded skill-data.
-go build -o "$BIN" ./cli
+go build -o "$BIN" .
 
 fail() { echo "FAIL: $1" >&2; exit 1; }
 

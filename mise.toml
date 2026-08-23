@@ -17,9 +17,9 @@ description = "Compile a dev build to dist/oma"
 # -s -w.
 env = { CGO_ENABLED = "0" }
 run = """
-go build -trimpath -ldflags "-s -w -X main.cliVersion=dev" -o dist/oma ./cli
+go build -trimpath -ldflags "-s -w -X main.cliVersion=dev" -o dist/oma .
 """
-sources = ["**/*.go", "go.mod", "cli/assets/**"]
+sources = ["**/*.go", "go.mod", "assets/**"]
 outputs = ["dist/oma"]
 
 [tasks.check]
@@ -31,11 +31,11 @@ run = "gofmt -l . && go vet ./... && go vet -tags live ./... && go test ./... &&
 
 [tasks.live]
 description = "Tier-1 offscreen verification (safe)"
-run = "go test -tags live -run Offscreen ./cli"
+run = "go test -tags live -run Offscreen ."
 
 [tasks."live-shell"]
 description = "Tier-2 full round trip - RESTARTS YOUR SHELL"
-run = "OMA_LIVE_TEST=1 go test -tags live -run LiveShell ./cli"
+run = "OMA_LIVE_TEST=1 go test -tags live -run LiveShell ."
 
 [tasks."install-dev"]
 description = "Symlink the dev build to ~/.local/bin/oma-dev"
@@ -47,4 +47,4 @@ oma-dev --version
 """
 
 [tasks.clean]
-run = "rm -rf dist cli/oma cli/cli"
+run = "rm -rf dist"

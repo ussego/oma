@@ -26,7 +26,7 @@ mise run live-shell   # tier-2 full round trip — RESTARTS YOUR SHELL
 mise run install-dev  # symlink dist/oma to ~/.local/bin/oma-dev
 
 # or plain Go from the repo root
-go build -trimpath -ldflags "-s -w -X main.cliVersion=dev" -o dist/oma ./cli
+go build -trimpath -ldflags "-s -w -X main.cliVersion=dev" -o dist/oma .
 go test ./...
 ```
 
@@ -36,7 +36,7 @@ go test ./...
 |---|---|---|
 | Hermetic Go tests | `go test -count=1 ./...` (repo root) | always |
 | Skills CLI smoke | `bash skills_test.sh` | always |
-| Runtime behavior | `node cli/assets/oma.test.js` | after runtime changes |
+| Runtime behavior | `node assets/oma.test.js` | after runtime changes |
 | Tier 1 (offscreen) | `mise run live` | **after any runtime/bridge/bundler change** |
 | Tier 2 (real shell) | `mise run live-shell` | release gate — restarts your shell, run before tagging |
 
@@ -61,17 +61,17 @@ child limits, tree-shaking holes) — that is what the live tiers are for.
 
 ## Changing the runtime or the bridge
 
-- Runtime: `cli/assets/oma.js` (single source of truth; `jsr/` is publish
+- Runtime: `assets/oma.js` (single source of truth; `jsr/` is publish
   staging that CI copies from it — don't edit `jsr/` directly).
 - Bridge template: `cli/bridge.go`; scanner/parser tests in
   `cli/bridge_test.go`.
-- After any change: `node cli/assets/oma.test.js`, the hermetic suite, and
+- After any change: `node assets/oma.test.js`, the hermetic suite, and
   **tier 1** (`mise run live`). If the user-facing behavior or generated
-  bridge shape changed, update the skill docs in `cli/assets/skill-data/`.
+  bridge shape changed, update the skill docs in `assets/skill-data/`.
 
 ## Adding a skill
 
-- Full content lives in `cli/assets/skill-data/<name>/` (`SKILL.md` +
+- Full content lives in `assets/skill-data/<name>/` (`SKILL.md` +
   `references/`), embedded in the binary and served by `oma skills get`.
 - The npx-facing discovery stub is `skills/oma/SKILL.md` — it routes agents
   to the CLI (`oma skills get <name>`). The parity test
@@ -107,7 +107,7 @@ Open a PR against `main`. The checklist:
 - [ ] `go vet ./...` and `go vet -tags live ./...` pass
 - [ ] `go test -count=1 ./...` passes
 - [ ] `bash skills_test.sh` passes
-- [ ] `node cli/assets/oma.test.js` passes
+- [ ] `node assets/oma.test.js` passes
 - [ ] Tier 1 (`mise run live`) run when the runtime, bridge template or
       bundler changed
 - [ ] Docs/skills updated when behavior changed

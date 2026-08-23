@@ -225,7 +225,7 @@ There must be one source of truth.
 ### Bridge mechanism (verified)
 
 The bridge is code generation, not a runtime object. `oma build` bundles `src/index.js` to `ui/index.mjs` (ESM — QJSEngine
-runs `import "index.mjs" as Logic`), then statically scans the source (Go, `cli/bridge.go`) and emits a QML `QtObject` that:
+runs `import "index.mjs" as Logic`), then statically scans the source (Go, `bridge.go`) and emits a QML `QtObject` that:
 
 - declares one `property` per `state({...})` field (auto-NOTIFY, so QML bindings react),
 - declares one `function` per action that delegates to `Logic.<fn>(...)`,
@@ -233,7 +233,7 @@ runs `import "index.mjs" as Logic`), then statically scans the source (Go, `cli/
 
 The scan never executes plugin code: every `export const x = state({...})` must be an object literal with fixed keys
 (spreads, computed keys and arrays fail the build); exported lowercase functions become actions. Bundling uses esbuild
-embedded in the CLI (`cli/bundle.go`) with `target: "es2016"`, which transpiles async arrows, object spread, class fields,
+embedded in the CLI (`bundle.go`) with `target: "es2016"`, which transpiles async arrows, object spread, class fields,
 optional chaining, and nullish down to what QJSEngine parses. A module-scoped `globalThis` stand-in is injected; `BigInt`
 is defined away as `Number`. If real-world state patterns ever outgrow the static scanner, the escalation path is
 running the bundle under goja at build time — not planned, documented only.
@@ -624,7 +624,7 @@ Do not implement unused commands merely for completeness.
 The CLI ships as one static binary (pure Go, CGO off, assets embedded) for
 `linux/amd64` and `linux/arm64`.
 
-- **Version**: `var cliVersion` in `cli/main.go`; release builds inject it with
+- **Version**: `var cliVersion` in `main.go`; release builds inject it with
   `-ldflags "-X main.cliVersion=<tag>"`. `oma --version` prints it.
 - **Releases**: push a `v*` tag; `.github/workflows/release.yml` builds both
   arches, tars them as `oma-<tag>-linux-<arch>.tar.gz`, publishes checksums to
@@ -687,7 +687,7 @@ is gitignored by scaffold.
 
 The CLI is a single static Go binary. Bundling runs in-process via esbuild
 embedded as a Go library (`github.com/evanw/esbuild`); the bridge generator is
-plain Go (`cli/bridge.go`). No Deno, no Node, no external toolchain — users need
+plain Go (`bridge.go`). No Deno, no Node, no external toolchain — users need
 only the `oma` binary to build a plugin.
 
 Libraries are imported from `node_modules` (esbuild resolves them natively) or
@@ -794,7 +794,7 @@ Do not write tests that merely assert implementation details.
 
 ## Live verification
 
-Hermetic tests cannot catch QJSEngine-only breakage. `cli/live_test.go`
+Hermetic tests cannot catch QJSEngine-only breakage. `live_test.go`
 (build tag `live`) runs the real engine in two tiers:
 
 ```sh

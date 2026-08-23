@@ -28,7 +28,7 @@ func stripBannerLines(s string) string {
 // index.mjs + <Name>.qml to be committed, so editing an example without
 // rebuilding fails here.
 func TestExamplesBuild(t *testing.T) {
-	repo := filepath.Clean(filepath.Join(".."))
+	repo := "."
 	for _, ex := range []string{"counter", "todo", "stopwatch"} {
 		dir := filepath.Join(t.TempDir(), ex)
 		if err := copyTree(filepath.Join(repo, "examples", ex), dir); err != nil {
